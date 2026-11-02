@@ -1,0 +1,2539 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aterros sobre Solos Moles — Módulo 1: Previsão e Aceleração de Recalques</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js & Annotation Plugin -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            geo: {
+              50: '#f0f7f9',
+              100: '#d9edf2',
+              200: '#b6dce6',
+              500: '#16697a',
+              600: '#115361',
+              700: '#0d3f4a',
+              800: '#092c34',
+              900: '#051b20',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f1f5f9;
+      color: #0f172a;
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #e2e8f0;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #94a3b8;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+    input[type="range"] {
+      accent-color: #16697a;
+    }
+    .formula-box {
+      font-family: 'JetBrains Mono', monospace;
+      background: #f8fafc;
+      border-left: 4px solid #16697a;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- TOP NAVIGATION & HEADER -->
+  <header class="bg-geo-800 text-white shadow-lg sticky top-0 z-30 border-b border-geo-600">
+    <div class="max-w-[1600px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 shadow-inner">
+          <i class="fa-solid fa-layer-group text-xl"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base sm:text-lg font-bold tracking-tight">Simulador de aterros</h1>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 font-medium">Módulo 1: Recalques (Cap. 3 e 4)</span>
+          </div>
+          <p class="text-xs text-slate-300">Baseado na obra <em>"Aterros sobre solos moles: projeto e desempenho"</em> (Almeida &amp; Marques)</p>
+        </div>
+      </div>
+
+      <!-- Preset Scenarios Selector -->
+      <div class="flex flex-wrap items-center gap-2">
+        <label for="presetSelect" class="text-xs text-slate-300 font-medium"><i class="fa-solid fa-flask mr-1 text-amber-400"></i>Cenários Didáticos do Livro:</label>
+        <select id="presetSelect" onchange="applyPreset(this.value)" class="bg-geo-900 text-xs text-white border border-geo-500 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-400">
+          <option value="default">1. Caso Base (Argila Mole 10m - Barra da Tijuca)</option>
+          <option value="fig37">2. Exemplo Fig. 3.7 (Efeito da Submersão Iterativa - 15m)</option>
+          <option value="fig310">3. Exemplo Fig. 3.10 (Sobrecarga Temporária - Argila 3m)</option>
+          <option value="etapas">4. Exemplo Fig. 3.18/3.19 (Construção em 3 Etapas + Geodrenos)</option>
+          <option value="vacuo">5. Depósito Muito Mole com Pré-carregamento a Vácuo</option>
+        </select>
+
+        <button onclick="openTheoryModal('visao_geral')" class="text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow">
+          <i class="fa-solid fa-book-open"></i> Guia Teórico
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT LAYOUT -->
+  <main class="max-w-[1600px] w-full mx-auto px-3 sm:px-4 py-4 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+    <!-- LEFT COLUMN: CONTROL PANEL & INPUTS (5 Cols on LG) -->
+    <aside class="lg:col-span-5 xl:col-span-4 space-y-4">
+
+      <!-- SECTION 1: DADOS BASE DA ARGILA E DO ATERRO -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="bg-slate-800 text-white px-4 py-2.5 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-geo-500 text-xs font-bold flex items-center justify-center">1</span>
+            <h2 class="font-semibold text-sm">Parâmetros Base: Solo Mole e Aterro</h2>
+          </div>
+          <button onclick="openTheoryModal('parametros_base')" class="text-xs bg-slate-700 hover:bg-slate-600 text-amber-300 px-2 py-1 rounded-md transition flex items-center gap-1" title="Ver Teoria sobre Compressibilidade">
+            <i class="fa-solid fa-circle-info"></i> Teoria
+          </button>
+        </div>
+
+        <div class="p-4 space-y-4 text-xs">
+          <!-- Subgrupo: Geometria e Drenagem da Argila -->
+          <div>
+            <div class="flex items-center justify-between mb-2 pb-1 border-b border-slate-100">
+              <span class="font-semibold text-slate-700 uppercase tracking-wider text-[11px]"><i class="fa-solid fa-arrows-up-down text-geo-600 mr-1"></i>Camada de Argila e Drenagem 1D</span>
+              <span id="hdDisplay" class="font-mono text-[11px] bg-geo-50 text-geo-700 px-2 py-0.5 rounded border border-geo-200">hd = 5.00 m</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <div class="flex justify-between mb-1">
+                  <label class="font-medium text-slate-700">Espessura <code>h_arg</code> (m)</label>
+                  <span id="val_harg" class="font-mono font-semibold text-geo-700">10.0</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="range" id="rng_harg" min="1" max="25" step="0.5" value="10.0" oninput="syncInput('harg', this.value)" class="w-full" />
+                  <input type="number" id="num_harg" min="0.5" max="40" step="0.5" value="10.0" oninput="syncInput('harg', this.value)" class="w-16 border border-slate-300 rounded px-1.5 py-1 font-mono text-right" />
+                </div>
+              </div>
+
+              <div>
+                <label class="font-medium text-slate-700 block mb-1">Condição de Fronteira</label>
+                <select id="drainageType" onchange="recalculateAll()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 bg-slate-50 font-medium text-slate-800">
+                  <option value="double">Dupla Drenagem (hd = h_arg / 2)</option>
+                  <option value="single">Simples Drenagem (hd = h_arg)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Subgrupo: Tensões e Compressibilidade Oedométrica -->
+          <div>
+            <div class="flex items-center justify-between mb-2 pb-1 border-b border-slate-100">
+              <span class="font-semibold text-slate-700 uppercase tracking-wider text-[11px]"><i class="fa-solid fa-compress text-geo-600 mr-1"></i>Compressibilidade e Estado de Tensões</span>
+              <button onclick="setNormallyConsolidated()" class="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded border border-slate-300 transition" title="Igualar Tensão de Sobreadensamento à Tensão Efetiva In Situ (OCR = 1.0)">
+                Fixar OCR = 1,0 (N.A.)
+              </button>
+            </div>
+
+            <p class="text-[11px] text-slate-500">Tensões calculadas no <strong>meio da camada de argila</strong>, considerando solo homogêneo saturado e nível d'água na superfície (N.A. = N.T.).</p>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              <div>
+                <label class="text-slate-600 block mb-0.5" title="Peso específico total da argila saturada"><code>&gamma;_arg</code> (kN/m³)</label>
+                <input type="number" id="num_gama_arg" min="10" max="25" step="0.1" value="16.0" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-2 py-1 font-mono" />
+              </div>
+              <div>
+                <label class="text-slate-600 block mb-0.5" title="Peso específico da água"><code>&gamma;_w</code> (kN/m³)</label>
+                <input type="number" id="num_gama_w" min="9" max="11" step="0.01" value="10.0" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-2 py-1 font-mono" />
+              </div>
+              <div>
+                <label class="text-slate-600 block mb-0.5" title="Razão de sobreadensamento (OCR ≥ 1)"><code>OCR</code> (entrada)</label>
+                <input type="number" id="num_OCR" min="1" max="20" step="0.01" value="1.166667" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-2 py-1 font-mono" />
+              </div>
+              <div>
+                <label class="text-slate-600 block mb-0.5" title="Índice de vazios inicial in situ">Índice vazios <code>e_vo</code></label>
+                <input type="number" id="num_evo" min="0.3" max="6.0" step="0.05" value="2.20" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-2 py-1 font-mono" />
+              </div>
+              <div>
+                <label class="text-slate-600 block mb-0.5" title="Tensão vertical total inicial no meio da argila"><code>&sigma;_vo</code> (kPa) — calculada</label>
+                <input type="text" id="num_sigtotal" value="80.00" readonly aria-readonly="true" class="w-full border border-slate-200 bg-slate-100 text-geo-700 rounded px-2 py-1 font-mono" />
+              </div>
+              <div>
+                <label class="text-slate-600 block mb-0.5" title="Tensão efetiva inicial no meio da camada"><code>&sigma;'_vo</code> (kPa) — calculada</label>
+                <input type="text" id="num_sigvo" value="30.00" readonly aria-readonly="true" class="w-full border border-slate-200 bg-slate-100 text-geo-700 rounded px-2 py-1 font-mono" />
+              </div>
+              <div>
+                <label class="text-slate-600 block mb-0.5" title="Tensão de pré-adensamento derivada do OCR"><code>&sigma;'_vm</code> (kPa) — calculada</label>
+                <input type="text" id="num_sigvm" value="35.00" readonly aria-readonly="true" class="w-full border border-slate-200 bg-slate-100 text-geo-700 rounded px-2 py-1 font-mono" />
+              </div>
+              <div>
+                <label class="text-slate-600 block mb-0.5" title="Índice de compressão virgem">Índice <code>C_c</code></label>
+                <input type="number" id="num_cc" min="0.05" max="4.0" step="0.02" value="1.28" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-2 py-1 font-mono" />
+              </div>
+              <div>
+                <label class="text-slate-600 block mb-0.5" title="Índice de recompressão / expansão">Índice <code>C_s</code></label>
+                <input type="number" id="num_cs" min="0.01" max="1.5" step="0.01" value="0.15" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-2 py-1 font-mono" />
+              </div>
+              <div class="bg-slate-50 rounded p-1.5 border border-slate-200 flex flex-col justify-center">
+                <div class="flex justify-between text-[11px]">
+                  <span class="text-slate-500">CR:</span>
+                  <span id="lbl_CR" class="font-mono font-semibold text-geo-700">0.400</span>
+                </div>
+                <div class="flex justify-between text-[11px]">
+                  <span class="text-slate-500">OCR:</span>
+                  <span id="lbl_OCR" class="font-mono font-semibold text-slate-700">1.17</span>
+                </div>
+              </div>
+            </div>
+            <p id="lbl_tensoes_warning" class="hidden mt-2 text-[11px] font-semibold text-red-700">Confira os pesos específicos: &gamma;_arg deve ser maior que &gamma;_w.</p>
+          </div>
+
+          <!-- Subgrupo: Coeficientes de Adensamento -->
+          <div>
+            <div class="flex items-center justify-between mb-2 pb-1 border-b border-slate-100">
+              <span class="font-semibold text-slate-700 uppercase tracking-wider text-[11px]"><i class="fa-solid fa-droplet text-geo-600 mr-1"></i>Coeficientes de Adensamento</span>
+              <span id="lbl_ch_cv" class="text-[11px] font-mono text-slate-500">ch / cv = 2.0</span>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-slate-600 block mb-0.5"><code>c_v</code> (10<sup>-8</sup> m²/s)</label>
+                <input type="number" id="num_cv" min="0.2" max="100" step="0.5" value="5.0" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-2 py-1 font-mono" />
+                <span id="lbl_cv_mes" class="text-[10px] text-slate-500 font-mono block mt-0.5">= 0.130 m²/mês</span>
+              </div>
+              <div>
+                <label class="text-slate-600 block mb-0.5"><code>c_h</code> (10<sup>-8</sup> m²/s)</label>
+                <input type="number" id="num_ch" min="0.2" max="200" step="0.5" value="10.0" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-2 py-1 font-mono" />
+                <span id="lbl_ch_mes" class="text-[10px] text-slate-500 font-mono block mt-0.5">= 0.259 m²/mês</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Subgrupo: Geometria do Aterro e Prazo -->
+          <div>
+            <div class="flex items-center justify-between mb-2 pb-1 border-b border-slate-100">
+              <span class="font-semibold text-slate-700 uppercase tracking-wider text-[11px]"><i class="fa-solid fa-mound text-geo-600 mr-1"></i>Carregamento do Aterro &amp; Prazo</span>
+              <button onclick="openTheoryModal('recalque_imediato')" class="text-[11px] text-geo-600 hover:underline flex items-center gap-1">
+                <i class="fa-solid fa-circle-info"></i> Fator I &amp; &Delta;hi
+              </button>
+            </div>
+
+            <div class="mb-3">
+              <div class="flex justify-between mb-1">
+                <label id="lbl_hat_input" class="font-medium text-slate-700">Altura de Aterro Lançado <code>h_at</code> (m)</label>
+                <span id="val_hat" class="font-mono font-semibold text-geo-700">3.00 m</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="range" id="rng_hat" min="0.5" max="10" step="0.1" value="3.0" oninput="syncInput('hat', this.value)" class="w-full" />
+                <input type="number" id="num_hat" min="0.5" max="15" step="0.1" value="3.0" oninput="syncInput('hat', this.value)" class="w-16 border border-slate-300 rounded px-1.5 py-1 font-mono text-right" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              <div>
+                <label class="text-slate-600 block mb-0.5"><code>&gamma;_at</code> (kN/m³)</label>
+                <input type="number" id="num_gama_at" min="12" max="24" step="0.5" value="18.0" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-2 py-1 font-mono" />
+              </div>
+              <div>
+                <label class="text-slate-600 block mb-0.5" title="Peso específico submerso do aterro"><code>&gamma;'_at</code> sub (kN/m³)</label>
+                <input type="number" id="num_gama_sub" min="4" max="16" step="0.5" value="10.0" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-2 py-1 font-mono" />
+              </div>
+              <div>
+                <label class="text-slate-600 block mb-0.5" title="Fator 2*I (Para aterro largo/infinito no centro, 2*I = 1.0)">Fator <code>2&middot;I</code> (Fig 3.4)</label>
+                <input type="number" id="num_fatorI" min="0.1" max="1.0" step="0.05" value="1.00" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-2 py-1 font-mono" />
+              </div>
+              <div>
+                <label class="text-slate-600 block mb-0.5" title="Recalque imediato não-drenado estimado">Rec. Imediato <code>&Delta;h_i</code> (m)</label>
+                <input type="number" id="num_dhi" min="0.0" max="1.5" step="0.01" value="0.05" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-2 py-1 font-mono" />
+              </div>
+              <div>
+                <label class="text-amber-800 font-semibold block mb-0.5" title="Linha vertical de meta no gráfico">Prazo Aceitável <code>t_ac</code> (mês)</label>
+                <input type="number" id="num_tac" min="1" max="240" step="1" value="18" oninput="recalculateAll()" class="w-full border-2 border-amber-400 bg-amber-50/40 rounded px-2 py-1 font-mono font-semibold" />
+              </div>
+              <div>
+                <label class="text-slate-600 block mb-0.5">Horizonte <code>t_max</code> (mês)</label>
+                <input type="number" id="num_tmax" min="12" max="360" step="6" value="60" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-2 py-1 font-mono" />
+              </div>
+            </div>
+            <div class="mt-2 bg-geo-50 border border-geo-200 rounded p-2 flex flex-wrap justify-between gap-1 text-[11px]">
+              <span>Acréscimo de tensão do aterro <code>&Delta;&sigma;_v = &gamma;_at &middot; h_at</code>:</span>
+              <strong id="lbl_delta_sigma" class="font-mono text-geo-700">54.00 kPa</strong>
+            </div>
+            <p id="lbl_delta_sigma_note" class="text-[10px] text-slate-500 mt-1">O fator geométrico 2&middot;I permanece aplicado ao carregamento no modelo de recalque.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 2: CONFIGURAÇÕES ESPECIAIS (SUBMERSÃO, COTA FIXA, SECUNDÁRIO) -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="bg-slate-800 text-white px-4 py-2.5 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-geo-500 text-xs font-bold flex items-center justify-center">2</span>
+            <h2 class="font-semibold text-sm">Configurações Globais de Cálculo</h2>
+          </div>
+          <button onclick="openTheoryModal('submersao_cotafixa')" class="text-xs bg-slate-700 hover:bg-slate-600 text-amber-300 px-2 py-1 rounded-md transition flex items-center gap-1">
+            <i class="fa-solid fa-circle-info"></i> Teoria
+          </button>
+        </div>
+
+        <div class="p-4 space-y-3 text-xs">
+          <!-- Toggle Submersão -->
+          <div class="flex items-start justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+            <div class="pr-2">
+              <label for="chk_submersao" class="font-semibold text-slate-800 cursor-pointer flex items-center gap-1.5">
+                Considerar Submersão do Aterro (Eq. 3.4)
+              </label>
+              <p class="text-[11px] text-slate-500 mt-0.5">Cálculo iterativo: parte do aterro penetra no N.A. com peso submerso <code>&gamma;'_at</code>, reduzindo a tensão efetiva.</p>
+            </div>
+            <input type="checkbox" id="chk_submersao" onchange="recalculateAll()" class="w-4 h-4 mt-1 accent-geo-600 rounded cursor-pointer" />
+          </div>
+
+          <!-- Toggle Cota Fixa -->
+          <div class="flex items-start justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+            <div class="pr-2">
+              <label for="chk_cotafixa" class="font-semibold text-slate-800 cursor-pointer flex items-center gap-1.5">
+                Cálculo para Cota Fixa de Projeto (Eq. 3.5)
+              </label>
+              <p class="text-[11px] text-slate-500 mt-0.5">Determina iterativamente a espessura extra necessária de aterro para compensar o afundamento e manter a cota.</p>
+              <button onclick="switchTab('tab_abaco')" class="mt-1.5 text-[11px] font-semibold text-geo-600 hover:text-geo-800 flex items-center gap-1">
+                <i class="fa-solid fa-chart-line"></i> Ver Ábaco Interativo de Cota Fixa (Fig. 3.8)
+              </button>
+            </div>
+            <input type="checkbox" id="chk_cotafixa" onchange="onToggleCotaFixa()" class="w-4 h-4 mt-1 accent-geo-600 rounded cursor-pointer" />
+          </div>
+
+          <!-- Toggle Carregamento Não Instantâneo (Terzaghi) -->
+          <div class="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+            <div class="flex items-start justify-between">
+              <div class="pr-2">
+                <label for="chk_terzaghi_tc" class="font-semibold text-slate-800 cursor-pointer">
+                  Correção de Período Construtivo <code>t_c</code> (Fig. 3.12)
+                </label>
+                <p class="text-[11px] text-slate-500 mt-0.5">Método de Terzaghi (1943): desloca a curva em <code>t_c / 2</code> para carregamento não instantâneo.</p>
+              </div>
+              <input type="checkbox" id="chk_terzaghi_tc" onchange="toggleConditionalUI(); recalculateAll()" class="w-4 h-4 mt-1 accent-geo-600 rounded cursor-pointer" />
+            </div>
+            <div id="box_tc_input" class="hidden mt-2 pt-2 border-t border-slate-200 flex items-center justify-between">
+              <label class="text-slate-700 font-medium">Tempo de Construção <code>t_c</code> (meses):</label>
+              <input type="number" id="num_tc" min="0.5" max="24" step="0.5" value="2.0" oninput="recalculateAll()" class="w-20 border border-slate-300 rounded px-2 py-1 font-mono text-right bg-white" />
+            </div>
+          </div>
+
+          <!-- Dropdown Compressão Secundária -->
+          <div class="p-2.5 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
+            <div class="flex items-center justify-between">
+              <label class="font-semibold text-slate-800">Recalque por Compressão Secundária (<code>&Delta;h_sec</code>)</label>
+              <button onclick="openTheoryModal('secundario')" class="text-[11px] text-geo-600 hover:underline flex items-center gap-1">
+                <i class="fa-solid fa-circle-info"></i> Hipótese A vs. Martins
+              </button>
+            </div>
+            <select id="sel_secundario" onchange="toggleConditionalUI(); recalculateAll()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-medium text-slate-800">
+              <option value="martins">Método de Martins (2005) — Limite OCR = 1,5 (Eq. 3.16)</option>
+              <option value="tradicional">Abordagem Tradicional — Hipótese A com C&alpha; (Eq. 3.13)</option>
+              <option value="none">Desconsiderar Compressão Secundária (Apenas Primário)</option>
+            </select>
+
+            <!-- Inputs Tradicional C_alpha -->
+            <div id="box_sec_tradicional" class="hidden pt-2 border-t border-slate-200 grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-slate-600 block mb-0.5">Coeficiente <code>C_&alpha;</code></label>
+                <input type="number" id="num_calpha" min="0.005" max="0.3" step="0.005" value="0.040" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-2 py-1 font-mono bg-white" />
+              </div>
+              <div>
+                <label class="text-slate-600 block mb-0.5" title="Tempo de fim do primário para início do secundário">Fim Primário <code>t_p*</code> (mês)</label>
+                <input type="number" id="num_tp_star" min="1" max="240" step="1" value="24" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-2 py-1 font-mono bg-white" />
+              </div>
+            </div>
+
+            <!-- Info Martins -->
+            <div id="box_sec_martins" class="pt-1 text-[11px] text-slate-600 flex items-center justify-between">
+              <span>Estimativa <code>&Delta;h_sec = 0,15 &middot; CR &middot; h_arg</code>:</span>
+              <span id="lbl_dhsec_martins" class="font-mono font-bold text-geo-700 bg-geo-50 px-2 py-0.5 rounded border border-geo-200">0.600 m</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 3: MÉTODOS DE ACELERAÇÃO E CONSTRUÇÃO EM ETAPAS -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="bg-slate-800 text-white px-4 py-2.5 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-amber-500 text-slate-950 text-xs font-bold flex items-center justify-center">3</span>
+            <h2 class="font-semibold text-sm">Soluções de Aceleração &amp; Comparação</h2>
+          </div>
+          <span class="text-[11px] text-slate-300">Pré-dimensionamento Manual</span>
+        </div>
+
+        <div class="p-4 space-y-3 text-xs">
+          <p class="text-[11px] text-slate-600 bg-amber-50 border border-amber-200 rounded-lg p-2">
+            <i class="fa-solid fa-sliders text-amber-600 mr-1"></i>
+            <strong>Laboratório de Sensibilidade:</strong> Ative as soluções abaixo e ajuste manualmente os parâmetros (ex: espaçamento <code>l</code> ou sobrecarga <code>h_s</code>) para comparar as curvas com a condição natural.
+          </p>
+
+          <!-- 3.1 Cenário Base (Sempre Ativo) -->
+          <div class="p-2.5 rounded-lg bg-slate-100 border border-slate-300 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <input type="checkbox" checked disabled class="w-4 h-4 accent-slate-700 rounded" />
+              <div>
+                <span class="font-semibold text-slate-800">1. Sem Aceleração (Drenagem Vertical 1D)</span>
+                <span class="block text-[10px] text-slate-500">Curva de referência obrigatória — Teoria de Terzaghi (1943)</span>
+              </div>
+            </div>
+            <span class="w-3 h-3 rounded-full bg-slate-700 inline-block"></span>
+          </div>
+
+          <!-- 3.2 Drenos Verticais (Geodrenos) -->
+          <div class="rounded-lg border border-sky-200 bg-sky-50/40 overflow-hidden">
+            <div class="p-2.5 flex items-center justify-between bg-sky-100/60">
+              <label for="chk_drenos" class="font-semibold text-sky-950 cursor-pointer flex items-center gap-2">
+                <input type="checkbox" id="chk_drenos" checked onchange="toggleConditionalUI(); recalculateAll()" class="w-4 h-4 accent-sky-600 rounded cursor-pointer" />
+                <span>2. Drenos Verticais (Geodrenos / PVD)</span>
+              </label>
+              <button onclick="openTheoryModal('drenos_verticais')" class="text-[11px] bg-white hover:bg-sky-50 text-sky-700 border border-sky-200 px-2 py-0.5 rounded transition">
+                <i class="fa-solid fa-circle-info"></i> Barron &amp; Carrillo
+              </button>
+            </div>
+
+            <div id="panel_drenos" class="p-3 space-y-3 border-t border-sky-200">
+              <!-- Slider de Espaçamento l -->
+              <div>
+                <div class="flex justify-between mb-1">
+                  <label class="font-medium text-slate-700">Espaçamento entre Drenos <code>l</code> (m)</label>
+                  <span id="val_spacing" class="font-mono font-bold text-sky-700">1.50 m</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="range" id="rng_spacing" min="0.6" max="4.0" step="0.05" value="1.50" oninput="syncInput('spacing', this.value)" class="w-full" />
+                  <input type="number" id="num_spacing" min="0.5" max="5.0" step="0.05" value="1.50" oninput="syncInput('spacing', this.value)" class="w-16 border border-slate-300 rounded px-1.5 py-1 font-mono text-right bg-white" />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label class="text-slate-600 block mb-0.5">Malha de Instalação</label>
+                  <select id="sel_malha" onchange="recalculateAll()" class="w-full border border-slate-300 rounded px-2 py-1 bg-white">
+                    <option value="triangular">Triangular (de = 1,05&middot;l)</option>
+                    <option value="quadrada">Quadrada (de = 1,13&middot;l)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-slate-600 block mb-0.5" title="Diâmetro equivalente do geodreno dw = (a+b)/2">Diâmetro eq. <code>d_w</code> (m)</label>
+                  <input type="number" id="num_dw" min="0.02" max="0.20" step="0.005" value="0.050" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-2 py-1 font-mono bg-white" />
+                </div>
+              </div>
+
+              <!-- Efeito de Amolgamento (Smear) -->
+              <div class="bg-white p-2 rounded border border-sky-200">
+                <div class="flex items-center justify-between">
+                  <label for="chk_smear" class="font-medium text-slate-700 cursor-pointer flex items-center gap-1.5">
+                    <input type="checkbox" id="chk_smear" onchange="toggleConditionalUI(); recalculateAll()" class="w-3.5 h-3.5 accent-sky-600 rounded" />
+                    Considerar Zona de Amolgamento (Smear)
+                  </label>
+                  <span id="lbl_Fn" class="font-mono text-[10px] text-sky-800 bg-sky-50 px-1.5 py-0.5 rounded">F(n) = 2.70</span>
+                </div>
+                <div id="box_smear_inputs" class="hidden mt-2 pt-2 border-t border-slate-100 grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="text-[10px] text-slate-500 block">Razão <code>s = d_m / d_w</code></label>
+                    <input type="number" id="num_smear_s" min="1.1" max="6.0" step="0.1" value="2.5" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-1.5 py-0.5 font-mono text-xs" />
+                  </div>
+                  <div>
+                    <label class="text-[10px] text-slate-500 block">Permeab. <code>k_h / k_s</code></label>
+                    <input type="number" id="num_smear_khks" min="1.0" max="10.0" step="0.5" value="2.0" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-1.5 py-0.5 font-mono text-xs" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Resistência Hidráulica Longitudinal do Geodreno (Well Resistance) -->
+              <div class="bg-white p-2 rounded border border-sky-200 space-y-2">
+                <label for="chk_well_resistance" class="font-medium text-slate-700 cursor-pointer flex items-center gap-1.5">
+                  <input type="checkbox" id="chk_well_resistance" checked onchange="toggleConditionalUI(); recalculateAll()" class="w-3.5 h-3.5 accent-sky-600 rounded" />
+                  Considerar Resistência Hidráulica do Geodreno (<code>F_q</code>)
+                </label>
+                <div id="box_well_inputs" class="grid grid-cols-2 gap-2 text-[10px] border-t border-slate-100 pt-2">
+                  <div>
+                    <label class="text-slate-500 block mb-0.5" title="Capacidade de descarga do geodreno para gradiente hidráulico unitário"><code>q_w</code> (m³/ano)</label>
+                    <input type="number" id="num_qw" min="0.01" max="100000" step="1" value="150" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-1.5 py-0.5 font-mono text-xs" />
+                  </div>
+                  <div>
+                    <label class="text-slate-500 block mb-0.5"><code>k_h</code> (m/s)</label>
+                    <input type="number" id="num_kh" min="1e-14" max="0.01" step="any" value="1e-9" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-1.5 py-0.5 font-mono text-xs" />
+                  </div>
+                  <div>
+                    <label class="text-slate-500 block mb-0.5">Comprimento total do geodreno (m)</label>
+                    <input type="number" id="num_pvd_len" min="0.1" max="100" step="0.5" value="10" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-1.5 py-0.5 font-mono text-xs" />
+                  </div>
+                  <div>
+                    <label class="text-slate-500 block mb-0.5">Drenagem pelas extremidades</label>
+                    <select id="sel_pvd_ends" onchange="recalculateAll()" class="w-full border border-slate-300 rounded px-1.5 py-0.5 font-mono text-xs bg-white">
+                      <option value="single">Uma (L = total)</option>
+                      <option value="double">Duas (L = total / 2)</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="bg-sky-50 border border-sky-100 rounded p-1.5 space-y-1 text-[10px] font-mono text-sky-900">
+                  <div>Comprimento característico: <strong id="lbl_L">L = 10.00 m</strong></div>
+                  <div>Resistência: <strong id="lbl_Wq">Wq = --</strong> <span id="lbl_Wq_state" class="text-slate-600"></span></div>
+                  <div>Acréscimo médio de resistência: <strong id="lbl_Fq">Fq = --</strong></div>
+                  <div class="text-slate-500 font-sans">Acréscimo desprezado se <code>Wq &lt; 0,1</code>; <code>Fq</code> é a média na profundidade de <code>&pi;z(2L-z)k_h/q_w</code>.</div>
+                </div>
+              </div>
+
+              <!-- Opções de Curvas de Drenagem para Comparar no Gráfico -->
+              <div class="bg-white p-2 rounded border border-sky-200 space-y-1">
+                <span class="block text-[10px] font-semibold uppercase text-slate-500">Curvas de Drenos para Plotar no Gráfico:</span>
+                <div class="flex flex-wrap gap-3 pt-1">
+                  <label class="flex items-center gap-1.5 cursor-pointer">
+                    <input type="checkbox" id="chk_plot_uh" onchange="recalculateAll()" class="w-3.5 h-3.5 accent-sky-500" />
+                    <span>Apenas Radial (<code>U_h</code>)</span>
+                  </label>
+                  <label class="flex items-center gap-1.5 cursor-pointer font-semibold text-sky-900">
+                    <input type="checkbox" id="chk_plot_ucomb" checked onchange="recalculateAll()" class="w-3.5 h-3.5 accent-sky-600" />
+                    <span>Combinada Vertical + Radial (<code>U</code> Carrillo)</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3.3 Sobrecarga Temporária (Isolada ou Combinada) -->
+          <div class="rounded-lg border border-emerald-200 bg-emerald-50/40 overflow-hidden">
+            <div class="p-2.5 flex items-center justify-between bg-emerald-100/60">
+              <label for="chk_sobrecarga" class="font-semibold text-emerald-950 cursor-pointer flex items-center gap-2">
+                <input type="checkbox" id="chk_sobrecarga" checked onchange="toggleConditionalUI(); recalculateAll()" class="w-4 h-4 accent-emerald-600 rounded cursor-pointer" />
+                <span>3. Sobrecarga Temporária (<code>h_s</code>)</span>
+              </label>
+              <button onclick="openTheoryModal('sobrecarga')" class="text-[11px] bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded transition">
+                <i class="fa-solid fa-circle-info"></i> Teoria
+              </button>
+            </div>
+
+            <div id="panel_sobrecarga" class="p-3 space-y-2.5 border-t border-emerald-200">
+              <div>
+                <div class="flex justify-between mb-1">
+                  <label class="font-medium text-slate-700">Altura Extra de Sobrecarga <code>h_s</code> (m)</label>
+                  <span id="val_hs" class="font-mono font-bold text-emerald-700">1.50 m</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="range" id="rng_hs" min="0.2" max="5.0" step="0.1" value="1.5" oninput="syncInput('hs', this.value)" class="w-full" />
+                  <input type="number" id="num_hs" min="0.1" max="8.0" step="0.1" value="1.5" oninput="syncInput('hs', this.value)" class="w-16 border border-slate-300 rounded px-1.5 py-1 font-mono text-right bg-white" />
+                </div>
+              </div>
+
+              <div>
+                <label class="text-slate-600 block mb-0.5">Modo de Drenagem Associado à Sobrecarga:</label>
+                <select id="sel_sc_drenagem" onchange="recalculateAll()" class="w-full border border-slate-300 rounded px-2 py-1 bg-white font-medium">
+                  <option value="combinada">Método Combinado: Sobrecarga + Geodrenos (U Carrillo)</option>
+                  <option value="vertical">Sobrecarga Isolada: Apenas Drenagem Vertical 1D (Uv)</option>
+                </select>
+              </div>
+
+              <label class="flex items-center gap-2 cursor-pointer bg-white p-2 rounded border border-emerald-200">
+                <input type="checkbox" id="chk_sc_comp_sec" onchange="recalculateAll()" class="w-3.5 h-3.5 accent-emerald-600 rounded" />
+                <span class="text-[11px] text-slate-700">Compensar também o Recalque Secundário de Martins (<code>&Delta;h_sec</code>) antes de remover a sobrecarga (Seção 4.4.3)</span>
+              </label>
+
+              <div class="bg-emerald-900/5 border border-emerald-300/60 rounded p-2 flex items-center justify-between text-[11px]">
+                <span>Grau <code>U_s</code> p/ retirada: <strong id="lbl_Us_sc" class="font-mono text-emerald-800">--%</strong></span>
+                <span>Retirada em: <strong id="lbl_tret_sc" class="font-mono text-emerald-800">-- meses</strong></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3.4 Pré-carregamento a Vácuo -->
+          <div class="rounded-lg border border-purple-200 bg-purple-50/40 overflow-hidden">
+            <div class="p-2.5 flex items-center justify-between bg-purple-100/60">
+              <label for="chk_vacuo" class="font-semibold text-purple-950 cursor-pointer flex items-center gap-2">
+                <input type="checkbox" id="chk_vacuo" onchange="toggleConditionalUI(); recalculateAll()" class="w-4 h-4 accent-purple-600 rounded cursor-pointer" />
+                <span>4. Pré-carregamento a Vácuo (<code>&Delta;u</code>)</span>
+              </label>
+              <button onclick="openTheoryModal('vacuo')" class="text-[11px] bg-white hover:bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded transition">
+                <i class="fa-solid fa-circle-info"></i> Teoria
+              </button>
+            </div>
+
+            <div id="panel_vacuo" class="hidden p-3 space-y-2.5 border-t border-purple-200">
+              <div class="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label class="text-slate-600 block mb-0.5">Sucção de Vácuo <code>|&Delta;u|</code> (kPa)</label>
+                  <input type="number" id="num_vacuo_kpa" min="20" max="90" step="5" value="70" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-2 py-1 font-mono bg-white" />
+                </div>
+                <div class="bg-white rounded p-1.5 border border-purple-200 flex flex-col justify-center">
+                  <span class="text-[10px] text-slate-500">Aterro Equivalente:</span>
+                  <span id="lbl_vacuo_eq" class="font-mono font-bold text-purple-700">~3.89 m (sem cisalhamento)</span>
+                </div>
+              </div>
+              <label class="flex items-center gap-2 cursor-pointer bg-white p-2 rounded border border-purple-200">
+                <input type="checkbox" id="chk_vacuo_ desligar" checked onchange="recalculateAll()" class="w-3.5 h-3.5 accent-purple-600 rounded" />
+                <span class="text-[11px] text-slate-700">Desligar bombas de vácuo ao atingir o recalque alvo de projeto</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 3.5 Aterro Construído em Etapas -->
+          <div class="rounded-lg border border-amber-300 bg-amber-50/40 overflow-hidden">
+            <div class="p-2.5 flex items-center justify-between bg-amber-100/70">
+              <label for="chk_etapas" class="font-semibold text-amber-950 cursor-pointer flex items-center gap-2">
+                <input type="checkbox" id="chk_etapas" checked onchange="toggleConditionalUI(); recalculateAll()" class="w-4 h-4 accent-amber-600 rounded cursor-pointer" />
+                <span>5. Aterro Construído em Etapas (Seção 3.2)</span>
+              </label>
+              <button onclick="openTheoryModal('aterro_etapas')" class="text-[11px] bg-white hover:bg-amber-50 text-amber-800 border border-amber-300 px-2 py-0.5 rounded transition">
+                <i class="fa-solid fa-circle-info"></i> Eqs. 3.17-3.22
+              </button>
+            </div>
+
+            <div id="panel_etapas" class="p-3 space-y-2.5 border-t border-amber-200">
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-slate-600 block mb-0.5">Número de Alteamentos</label>
+                  <select id="sel_num_etapas" onchange="toggleConditionalUI(); recalculateAll()" class="w-full border border-slate-300 rounded px-2 py-1 bg-white font-medium">
+                    <option value="2">2 Etapas Construtivas</option>
+                    <option value="3" selected>3 Etapas Construtivas (Fig. 3.19)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-slate-600 block mb-0.5">Drenagem nas Etapas</label>
+                  <select id="sel_etapas_drenagem" onchange="recalculateAll()" class="w-full border border-slate-300 rounded px-2 py-1 bg-white font-medium">
+                    <option value="combinada">Com Geodrenos (Combinada)</option>
+                    <option value="vertical">Sem Drenos (Vertical 1D)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Tabela de Etapas -->
+              <div class="bg-white rounded border border-amber-200 p-2 space-y-2">
+                <div class="grid grid-cols-12 gap-1 text-[10px] font-semibold text-slate-500 border-b pb-1">
+                  <div class="col-span-4">Etapa</div>
+                  <div class="col-span-4 text-center">Alteamento &Delta;h_at (m)</div>
+                  <div class="col-span-4 text-center">Início t (meses)</div>
+                </div>
+                <!-- Etapa 1 -->
+                <div class="grid grid-cols-12 gap-2 items-center">
+                  <div class="col-span-4 font-medium text-slate-700">1ª Etapa</div>
+                  <div class="col-span-4">
+                    <input type="number" id="num_he1" min="0.2" max="10" step="0.1" value="1.5" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-1.5 py-0.5 font-mono text-center" />
+                  </div>
+                  <div class="col-span-4 text-center font-mono text-slate-500">t = 0.0</div>
+                </div>
+                <!-- Etapa 2 -->
+                <div class="grid grid-cols-12 gap-2 items-center">
+                  <div class="col-span-4 font-medium text-slate-700">2ª Etapa</div>
+                  <div class="col-span-4">
+                    <input type="number" id="num_he2" min="0.1" max="10" step="0.1" value="1.0" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-1.5 py-0.5 font-mono text-center" />
+                  </div>
+                  <div class="col-span-4">
+                    <input type="number" id="num_te2" min="1" max="120" step="1" value="6" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-1.5 py-0.5 font-mono text-center" />
+                  </div>
+                </div>
+                <!-- Etapa 3 -->
+                <div id="row_etapa3" class="grid grid-cols-12 gap-2 items-center">
+                  <div class="col-span-4 font-medium text-slate-700">3ª Etapa</div>
+                  <div class="col-span-4">
+                    <input type="number" id="num_he3" min="0.1" max="10" step="0.1" value="0.5" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-1.5 py-0.5 font-mono text-center" />
+                  </div>
+                  <div class="col-span-4">
+                    <input type="number" id="num_te3" min="2" max="180" step="1" value="12" oninput="recalculateAll()" class="w-full border border-slate-300 rounded px-1.5 py-0.5 font-mono text-center" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Resumo da Atualização de Espessura e Tensão nas Etapas -->
+              <div id="etapas_diagnostics" class="text-[11px] bg-amber-900/5 border border-amber-300/70 rounded p-2 space-y-1 font-mono">
+                <!-- Preenchido via JS -->
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- RIGHT COLUMN: RESULTS DASHBOARD, CHARTS & LIMITATIONS (7 Cols on LG, 8 on XL) -->
+    <section class="lg:col-span-7 xl:col-span-8 flex flex-col gap-4">
+
+      <!-- TOP KPI CARDS -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <!-- Card 1: Magnitude Primário -->
+        <div class="bg-white rounded-xl p-3.5 shadow-sm border border-slate-200 border-l-4 border-l-geo-600">
+          <div class="flex items-center justify-between text-xs text-slate-500 mb-1">
+            <span>Recalque Primário (<code>&Delta;h_f</code>)</span>
+            <i class="fa-solid fa-arrows-down-to-line text-geo-600"></i>
+          </div>
+          <div id="kpi_dh_prim" class="text-xl font-bold font-mono text-slate-900">1.35 m</div>
+          <div id="kpi_dh_sub_info" class="text-[11px] text-slate-500 mt-1">Sem submersão (&Delta;&sigma;v = 54 kPa)</div>
+        </div>
+
+        <!-- Card 2: Recalque Total (Imediato + Primário + Secundário) -->
+        <div class="bg-white rounded-xl p-3.5 shadow-sm border border-slate-200 border-l-4 border-l-amber-500">
+          <div class="flex items-center justify-between text-xs text-slate-500 mb-1">
+            <span>Recalque Total Estimado</span>
+            <i class="fa-solid fa-layer-group text-amber-500"></i>
+          </div>
+          <div id="kpi_dh_total" class="text-xl font-bold font-mono text-slate-900">2.00 m</div>
+          <div id="kpi_dh_total_sub" class="text-[11px] text-slate-500 mt-1">&Delta;hi + &Delta;hf + &Delta;hsec</div>
+        </div>
+
+        <!-- Card 3: Tempo sem aceleração vs. Com Drenos -->
+        <div class="bg-white rounded-xl p-3.5 shadow-sm border border-slate-200 border-l-4 border-l-sky-500">
+          <div class="flex items-center justify-between text-xs text-slate-500 mb-1">
+            <span>Tempo p/ U = 90% (t90)</span>
+            <i class="fa-solid fa-clock text-sky-500"></i>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span id="kpi_t90_drenos" class="text-xl font-bold font-mono text-sky-700">11.2 m</span>
+            <span id="kpi_t90_base" class="text-xs font-mono text-slate-400 line-through">163 m</span>
+          </div>
+          <div id="kpi_t90_status" class="text-[11px] font-medium text-emerald-600 mt-1">Atende ao prazo tac (18m)</div>
+        </div>
+
+        <!-- Card 4: Espessura Necessária / Sobrecarga -->
+        <div class="bg-white rounded-xl p-3.5 shadow-sm border border-slate-200 border-l-4 border-l-emerald-500">
+          <div class="flex items-center justify-between text-xs text-slate-500 mb-1">
+            <span id="kpi_card4_title">Retirada da Sobrecarga</span>
+            <i class="fa-solid fa-truck-ramp-box text-emerald-600"></i>
+          </div>
+          <div id="kpi_card4_val" class="text-xl font-bold font-mono text-emerald-700">6.4 meses</div>
+          <div id="kpi_card4_sub" class="text-[11px] text-slate-500 mt-1">Alvo atingido com Us = 78%</div>
+        </div>
+      </div>
+
+      <!-- TABS NAVIGATION FOR CHARTS -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
+        <div class="border-b border-slate-200 bg-slate-50 px-3 pt-2 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex flex-wrap gap-1" role="tablist">
+            <button id="btn_tab_main" onclick="switchTab('tab_main')" class="px-3.5 py-2 text-xs font-semibold rounded-t-lg border-t border-x border-slate-200 bg-white text-geo-700 -mb-px flex items-center gap-1.5">
+              <i class="fa-solid fa-chart-area text-geo-600"></i>
+              1. Curvas Recalque vs. Tempo &amp; Gráfico Duplo
+            </button>
+            <button id="btn_tab_sens" onclick="switchTab('tab_sens')" class="px-3.5 py-2 text-xs font-semibold rounded-t-lg text-slate-600 hover:text-slate-900 flex items-center gap-1.5">
+              <i class="fa-solid fa-sliders text-amber-600"></i>
+              2. Análise de Sensibilidade Paramétrica
+            </button>
+            <button id="btn_tab_abaco" onclick="switchTab('tab_abaco')" class="px-3.5 py-2 text-xs font-semibold rounded-t-lg text-slate-600 hover:text-slate-900 flex items-center gap-1.5">
+              <i class="fa-solid fa-table-cells text-emerald-600"></i>
+              3. Ábaco de Cota Fixa (Fig. 3.8) &amp; Submersão (Fig. 3.7)
+            </button>
+          </div>
+
+          <div class="pb-1.5 flex items-center gap-2">
+            <label class="text-xs text-slate-600 flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" id="chk_show_loading_chart" checked onchange="toggleLoadingChart()" class="w-3.5 h-3.5 accent-geo-600 rounded" />
+              <span>Exibir Gráfico Superior de Carregamento (Gráfico Duplo Fig. 3.19)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- TAB 1: MAIN SYNCHRONIZED CHARTS (LOADING HISTORY + SETTLEMENT VS TIME) -->
+        <div id="tab_main" class="p-4 space-y-4 flex-1 flex flex-col">
+          <!-- Upper Chart: Loading / Embankment Thickness vs Time -->
+          <div id="container_loading_chart" class="w-full">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                <i class="fa-solid fa-stairs text-amber-600"></i>
+                História de Carregamento: Espessura de Aterro / Carga Equivalente vs. Tempo (Fig. 3.18C / 3.19)
+              </span>
+              <span class="text-[11px] text-slate-500">Degraus de etapas construtivas e retirada de sobrecarga</span>
+            </div>
+            <div class="relative h-36 w-full bg-slate-50/50 rounded-lg border border-slate-200 p-2">
+              <canvas id="chartLoading"></canvas>
+            </div>
+          </div>
+
+          <!-- Lower Chart: Settlement vs Time -->
+          <div class="w-full flex-1 flex flex-col">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+              <span class="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                <i class="fa-solid fa-chart-line text-geo-600"></i>
+                Evolução de Recalques com o Tempo — Comparação de Cenários (Eixo Y invertido)
+              </span>
+              <div class="flex items-center gap-3 text-[11px]">
+                <span class="flex items-center gap-1 text-amber-700 font-medium">
+                  <span class="w-3 h-0.5 bg-amber-500 inline-block border-b border-dashed border-amber-600"></span>
+                  Linha Vertical: Prazo Aceitável (<code>t_ac</code>)
+                </span>
+                <span class="flex items-center gap-1 text-rose-700 font-medium">
+                  <span class="w-3 h-0.5 bg-rose-500 inline-block"></span>
+                  Linha Horizontal: Alvo Primário (<code>&Delta;h_f</code>)
+                </span>
+              </div>
+            </div>
+            <div class="relative h-[360px] w-full bg-white rounded-lg border border-slate-200 p-2">
+              <canvas id="chartSettlement"></canvas>
+            </div>
+          </div>
+
+          <!-- Comparative Scenarios Table -->
+          <div class="mt-2">
+            <h3 class="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <i class="fa-solid fa-table-list text-geo-600"></i>
+              Quadro Comparativo de Desempenho no Prazo de Projeto (<span id="tbl_tac_lbl">t_ac = 18 meses</span>)
+            </h3>
+            <div class="overflow-x-auto border border-slate-200 rounded-lg">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="bg-slate-100 text-slate-700 border-b border-slate-200">
+                    <th class="py-2 px-3 font-semibold">Cenário / Solução Analisada</th>
+                    <th class="py-2 px-3 font-semibold text-right">Recalque em <code>t_ac</code></th>
+                    <th class="py-2 px-3 font-semibold text-right">Grau <code>U(t_ac)</code></th>
+                    <th class="py-2 px-3 font-semibold text-right">Tempo p/ <code>U=90%</code></th>
+                    <th class="py-2 px-3 font-semibold text-right">Recalque a <code>t_max</code></th>
+                    <th class="py-2 px-3 font-semibold text-center">Diagnóstico no Prazo <code>t_ac</code></th>
+                  </tr>
+                </thead>
+                <tbody id="tbody_comparison" class="divide-y divide-slate-200 font-mono text-[11px]">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: PARAMETRIC SENSITIVITY ANALYSIS -->
+        <div id="tab_sens" class="hidden p-4 space-y-4 flex-1 flex flex-col">
+          <div class="bg-amber-50/70 border border-amber-200 rounded-xl p-3.5">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <div>
+                <h3 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                  <i class="fa-solid fa-magnifying-glass-chart text-amber-600"></i>
+                  Explorador de Sensibilidade Paramétrica
+                </h3>
+                <p class="text-xs text-slate-600">Selecione qualquer parâmetro de projeto no Eixo X para visualizar como ele governa os recalques ou o tempo de estabilização no Eixo Y.</p>
+              </div>
+              <button onclick="openTheoryModal('sensibilidade')" class="text-xs bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-1 rounded-lg font-medium transition">
+                <i class="fa-solid fa-circle-info mr-1"></i>Como interpretar estas curvas?
+              </button>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div>
+                <label class="font-semibold text-slate-700 block mb-1">Variável Independente (Eixo X):</label>
+                <select id="sel_sens_x" onchange="updateSensitivityChart()" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white font-medium text-slate-800 shadow-sm">
+                  <option value="spacing">1. Espaçamento entre Geodrenos l (0,5 m a 4,0 m)</option>
+                  <option value="harg">2. Espessura da Camada de Argila h_arg (2 m a 20 m — Fig. 3.11)</option>
+                  <option value="hat">3. Altura do Aterro h_at (1,0 m a 8,0 m)</option>
+                  <option value="cc">4. Índice de Compressão C_c (0,30 a 2,50)</option>
+                  <option value="cv">5. Coeficiente de Adensamento c_v / c_h (1 a 25 &times; 10⁻⁸ m²/s)</option>
+                  <option value="hs">6. Altura de Sobrecarga Temporária h_s (0,2 m a 4,0 m)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="font-semibold text-slate-700 block mb-1"> Variável Resposta (Eixo Y):</label>
+                <select id="sel_sens_y" onchange="updateSensitivityChart()" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white font-medium text-slate-800 shadow-sm">
+                  <option value="t90_comb">1. Tempo para 90% de Adensamento Primário (meses)</option>
+                  <option value="dh_prim">2. Magnitude do Recalque Primário Final &Delta;h_f (m)</option>
+                  <option value="u_tac">3. Grau de Adensamento U (%) atingido no prazo t_ac</option>
+                  <option value="t_ret_sc">4. Tempo para Remoção da Sobrecarga Temporária (meses)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="relative h-[380px] w-full bg-white rounded-xl border border-slate-200 p-3 flex-1">
+            <canvas id="chartSensitivity"></canvas>
+          </div>
+
+          <div id="sens_insight_box" class="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-700">
+            <!-- Dynamic physical insight populated via JS -->
+          </div>
+        </div>
+
+        <!-- TAB 3: FIXED GRADE ABACUS (FIG 3.8) & SUBMERSION ITERATIONS (FIG 3.7B) -->
+        <div id="tab_abaco" class="hidden p-4 space-y-4 flex-1 flex flex-col">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
+            <!-- Left Chart: Fig 3.8 Abacus -->
+            <div class="bg-white rounded-xl border border-slate-200 p-3 flex flex-col">
+              <div class="flex items-center justify-between mb-2">
+                <div>
+                  <h4 class="text-xs font-bold text-slate-800">Ábaco Interativo de Cota Fixa (Reprodução da Fig. 3.8)</h4>
+                  <p class="text-[11px] text-slate-500">Espessura de aterro necessária (<code>h_at = c_fixa + &Delta;h</code>) vs. Cota fixa desejada</p>
+                </div>
+                <span class="text-[10px] font-mono bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200">Eq. 3.5</span>
+              </div>
+              <div class="relative h-[320px] w-full flex-1">
+                <canvas id="chartAbaco"></canvas>
+              </div>
+              <p class="text-[11px] text-slate-600 mt-2 bg-slate-50 p-2 rounded border border-slate-200">
+                <strong>Interpretação Prática:</strong> Para atingir uma cota final nivelada (ex: encontro de ponte), quanto mais espessa e compressível for a camada de argila, maior é o volume adicional de aterro que afunda e fica submerso.
+              </p>
+            </div>
+
+            <!-- Right Chart: Fig 3.7B Submersion Convergence -->
+            <div class="bg-white rounded-xl border border-slate-200 p-3 flex flex-col">
+              <div class="flex items-center justify-between mb-2">
+                <div>
+                  <h4 class="text-xs font-bold text-slate-800">Convergência Iterativa da Submersão (Reprodução da Fig. 3.7B)</h4>
+                  <p class="text-[11px] text-slate-500">Evolução do recalque calculado <code>&Delta;h_j</code> em cada iteração <code>j = 1, 2... 10</code></p>
+                </div>
+                <span class="text-[10px] font-mono bg-sky-50 text-sky-700 px-2 py-0.5 rounded border border-sky-200">Eqs. 3.3 e 3.4</span>
+              </div>
+              <div class="relative h-[320px] w-full flex-1">
+                <canvas id="chartIterations"></canvas>
+              </div>
+              <p class="text-[11px] text-slate-600 mt-2 bg-slate-50 p-2 rounded border border-slate-200">
+                <strong>Comportamento Numérico:</strong> A iteração <code>j = 1</code> ignora a submersão (superestimando o recalque). Na iteração <code>j = 2</code> o empuxo reduz a carga para o mínimo, convergindo em seguida após ~5 iterações.
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- EDUCATIONAL LIMITATIONS & ALERTS PANEL (CHAPTER 3 & 4 CONCLUSIONS) -->
+      <div class="bg-amber-50/90 border border-amber-300 rounded-xl p-4 shadow-sm">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-amber-950 flex items-center gap-2">
+            <i class="fa-solid fa-triangle-exclamation text-amber-600 text-sm"></i>
+            Alertas de Limitações Teóricas &amp; Senso Crítico Geotécnico (Capítulos 3 e 4)
+          </h3>
+          <button onclick="openTheoryModal('limitacoes')" class="text-xs text-amber-900 underline font-medium hover:text-amber-700">
+            Ler detalhes completos
+          </button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-amber-950/90">
+          <div class="bg-white/80 p-2.5 rounded-lg border border-amber-200">
+            <strong class="block text-amber-900 mb-0.5"><i class="fa-solid fa-arrows-left-right mr-1 text-amber-600"></i>1. Hipótese Unidimensional vs. Bordas:</strong>
+            Os modelos analíticos assumem deformações puramente verticais. Sob o pé e taludes do aterro ocorrem deslocamentos horizontais (extrusão lateral) que aumentam o recalque e exigem controle por inclinômetros.
+          </div>
+          <div class="bg-white/80 p-2.5 rounded-lg border border-amber-200">
+            <strong class="block text-amber-900 mb-0.5"><i class="fa-solid fa-chart-simple mr-1 text-amber-600"></i>2. Não-constância de <code>c_v</code> e <code>c_h</code>:</strong>
+            As teorias de Terzaghi e Barron assumem <code>c_v</code> e <code>c_h</code> constantes. Na realidade, o coeficiente cai drasticamente quando a tensão efetiva ultrapassa a tensão de sobreadensamento (<code>&sigma;'_vm</code>).
+          </div>
+          <div class="bg-white/80 p-2.5 rounded-lg border border-amber-200">
+            <strong class="block text-amber-900 mb-0.5"><i class="fa-solid fa-infinity mr-1 text-amber-600"></i>3. Limite Físico do Secundário e Estabilidade:</strong>
+            A equação tradicional com <code>C_&alpha;</code> constante levaria a índices de vazios negativos para <code>t &rarr; &infin;</code>. Além disso, o uso de sobrecarga física exige sempre verificar a Altura Crítica de ruptura (Módulo 2 / Cap. 5).
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- EDUCATIONAL THEORY MODAL -->
+  <div id="theoryModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+      <div class="bg-geo-800 text-white px-5 py-3.5 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <i class="fa-solid fa-graduation-cap text-amber-400 text-lg"></i>
+          <h3 id="modalTitle" class="font-bold text-base">Fundamentação Teórica — Almeida &amp; Marques</h3>
+        </div>
+        <button onclick="closeTheoryModal()" class="text-slate-300 hover:text-white w-8 h-8 rounded-lg flex items-center justify-center">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      <div id="modalBody" class="p-5 overflow-y-auto space-y-4 text-sm text-slate-700 leading-relaxed">
+        <!-- Populated dynamically -->
+      </div>
+      <div class="bg-slate-100 px-5 py-3 border-t border-slate-200 flex justify-between items-center">
+        <span class="text-xs text-slate-500">Referência estrita: <em>Aterros sobre solos moles: projeto e desempenho</em> (Cap. 3 e 4)</span>
+        <button onclick="closeTheoryModal()" class="bg-geo-600 hover:bg-geo-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">
+          Compreendido
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT ENGINE: GEOTECHNICAL CALCULATIONS & INTERACTIVE CHARTS -->
+  <script>
+    // ============================================================================
+    // 1. BANCO DE CONTEÚDO EDUCACIONAL (TEORIA ESTRITA DO LIVRO)
+    // ============================================================================
+    const THEORY_CONTENT = {
+      visao_geral: {
+        title: "Visão Geral: Previsão e Aceleração de Recalques (Cap. 3 e 4)",
+        html: `
+          <p>O projeto de aterros sobre depósitos de argilas moles divide-se fundamentalmente na <strong>análise de deformações (recalques)</strong> e na <strong>análise de estabilidade contra a ruptura</strong>. Este Módulo 1 contempla a previsão da magnitude e da velocidade dos recalques, bem como as técnicas construtivas para acelerá-los e compensá-los.</p>
+          <div class="formula-box p-3 rounded-lg text-xs space-y-1">
+            <div><strong>Parcelas do Recalque Total:</strong></div>
+            <div><code>&Delta;h_total = &Delta;h_i + &Delta;h + &Delta;h_sec</code></div>
+            <div class="text-slate-500">Onde: <code>&Delta;h_i</code> = recalque imediato (não drenado); <code>&Delta;h</code> = adensamento primário; <code>&Delta;h_sec</code> = compressão secundária.</div>
+          </div>
+          <h4 class="font-bold text-slate-900 mt-2">Como utilizar este WebApp pedagogicamente:</h4>
+          <ul class="list-disc pl-5 space-y-1 text-xs">
+            <li><strong>Sensibilidade Manual:</strong> Em vez de usar planilhas estáticas, altere o espaçamento dos geodrenos (<code>l</code>) ou a sobrecarga temporária (<code>h_s</code>) para observar em tempo real quando a curva cruza a linha vertical do <em>Prazo Aceitável (t_ac)</em>.</li>
+            <li><strong>Efeitos Não-Lineares:</strong> Ative os seletores de <em>Submersão do Aterro</em> e <em>Cota Fixa</em> para compreender como o afundamento do aterro no lençol freático altera o peso efetivo e exige maior volume de material.</li>
+          </ul>
+        `
+      },
+      parametros_base: {
+        title: "Compressibilidade Oedométrica e Tensão de Sobreadensamento (Seção 3.1)",
+        html: `
+          <p>A magnitude do recalque por adensamento primário (<code>&Delta;h</code>) é calculada dividindo-se a camada compressível e aplicando-se os parâmetros obtidos no ensaio de adensamento oedométrico, devidamente corrigidos quanto ao amolgamento pelo método de <strong>Schmertmann (1955)</strong> (Fig. 3.5).</p>
+          <div class="formula-box p-3 rounded-lg text-xs space-y-2">
+            <div><strong>Equação Geral do Recalque Primário (Eq. 3.1):</strong></div>
+            <div><code>&Delta;h = h_arg &middot; [ (C_s / (1 + e_vo)) &middot; log(&sigma;'_vm / &sigma;'_vo) + (C_c / (1 + e_vo)) &middot; log((&sigma;'_vo + &Delta;&sigma;_v) / &sigma;'_vm) ]</code></div>
+          </div>
+          <ul class="list-disc pl-5 space-y-1.5 text-xs">
+            <li><strong>Tensão de Sobreadensamento (<code>&sigma;'_vm</code>):</strong> Usualmente determinada pelo método de Pacheco Silva (1970), separa o trecho de recompressão rígida (governado por <code>C_s</code>) do trecho de compressão virgem altamente deformável (governado por <code>C_c</code>).</li>
+            <li><strong>Razão de Compressão (<code>CR</code>):</strong> Definida como <code>CR = C_c / (1 + e_vo)</code>. Em argilas muito moles brasileiras (ex: Barra da Tijuca e Baixada Santista), <code>CR</code> situa-se frequentemente entre 0,30 e 0,50.</li>
+          </ul>
+        `
+      },
+      recalque_imediato: {
+        title: "Recalque Imediato e Fator de Influência I (Fig. 3.4)",
+        html: `
+          <p>O <strong>recalque imediato (<code>&Delta;h_i</code>)</strong> decorre do carregamento instantâneo sem variação de volume da argila (deformação cisalhante não drenada ou elástica).</p>
+          <ul class="list-disc pl-5 space-y-1.5 text-xs">
+            <li>Conforme destacado no Capítulo 3, em aterros extensos (comprimento e largura grandes em relação à espessura <code>h_arg</code> da camada mole), o recalque imediato é de pequena magnitude quando comparado ao recalque por adensamento primário.</li>
+            <li><strong>Fator de Influência (<code>I</code>):</strong> Para carregamentos trapezoidais simétricos (Fig. 3.4, Poulos &amp; Davis, 1974), o acréscimo de tensão vertical no eixo de simetria é dado por <code>&Delta;&sigma;_v = 2 &middot; I &middot; &gamma;_at &middot; h_at</code>. No centro de um aterro largo (<code>b/z &rarr; &infin;</code>), tem-se <code>I = 0,50</code>, resultando em <code>2&middot;I = 1,0</code>.</li>
+          </ul>
+        `
+      },
+      submersao_cotafixa: {
+        title: "Efeito da Submersão (Eq. 3.4) e Cálculo para Cota Fixa (Eq. 3.5)",
+        html: `
+          <p>À medida que a fundação de argila mole recalca, a base do aterro mergulha abaixo do nível d'água (N.A.). Essa parcela submersa passa a sofrer empuxo hidrostático, reduzindo seu peso específico de <code>&gamma;_at</code> para <code>&gamma;'_at = &gamma;_at - &gamma;_w</code>.</p>
+          <div class="formula-box p-3 rounded-lg text-xs space-y-2">
+            <div><strong>1. Submersão Iterativa (Eq. 3.4 e Fig. 3.6):</strong></div>
+            <div><code>&Delta;h_(j+1) = h_arg &middot; [C_c / (1 + e_vo)] &middot; log( (&sigma;'_vo + &gamma;_at&middot;h_1 + &gamma;'_at&middot;h_2) / &sigma;'_vo )</code></div>
+            <div class="text-slate-500">Onde <code>h_2 = &Delta;h_j</code> é o trecho submerso e <code>h_1 = h_at - &Delta;h_j</code> é o trecho seco acima do N.A.</div>
+            <div class="pt-2 border-t border-slate-200"><strong>2. Cálculo para Cota Fixa (Eq. 3.5 e Fig. 3.8):</strong></div>
+            <div><code>&Delta;h = h_arg &middot; [C_c / (1 + e_vo)] &middot; log( (&sigma;'_vo + &gamma;_at&middot;c_fixa + &gamma;'_at&middot;&Delta;h) / &sigma;'_vo )</code></div>
+            <div class="text-slate-500">Para manter a superfície do aterro na cota fixa <code>c_fixa</code>, deve-se lançar uma espessura total <code>h_at = c_fixa + &Delta;h</code>. Como <code>&Delta;h</code> aparece nos dois lados da equação, a solução é obrigatoriamente iterativa.</div>
+          </div>
+        `
+      },
+      secundario: {
+        title: "Compressão Secundária: Abordagem Tradicional vs. Martins (2005)",
+        html: `
+          <p>A compressão secundária refere-se à deformação viscosa do esqueleto sólido sob tensão efetiva constante. O livro apresenta duas formulações distintas (Seção 3.1.3):</p>
+          <div class="formula-box p-3 rounded-lg text-xs space-y-2">
+            <div><strong>A) Abordagem Tradicional — Hipótese A (Eq. 3.10 e 3.13):</strong></div>
+            <div><code>&Delta;h_sec(t) = [ C_&alpha; &middot; h_arg / (1 + e_vo) ] &middot; log( t / t_p* )</code> &nbsp; (para <code>t &ge; t_p*</code>)</div>
+            <div class="text-slate-500">Admite que o secundário só se inicia após o fim do primário (<code>t_p*</code>). <em>Crítica teórica:</em> Como <code>C_&alpha;</code> é assumido constante, para tempos muito grandes o índice de vazios tenderia a valores negativos (fisicamente impossível).</div>
+            <div class="pt-2 border-t border-slate-200"><strong>B) Previsão segundo Martins (2005) (Eq. 3.15 e 3.16):</strong></div>
+            <div><code>&Delta;h_sec / h_arg = 0,15 &middot; CR</code> &nbsp; (admitindo <code>C_s / C_c = 0,15</code>)</div>
+            <div class="text-slate-500">Baseado em evidências experimentais (Fig. 3.17), Martins (2005) demonstra que o limite máximo de compressão secundária corresponde à variação de deformação vertical da reta de fim do primário (<code>OCR = 1,0</code>) até a reta de <code>OCR = 1,5</code>.</div>
+          </div>
+        `
+      },
+      drenos_verticais: {
+        title: "Drenos Verticais (Geodrenos): Teorias de Barron (1948) e Carrillo (1942)",
+        html: `
+          <p>Quando o tempo de estabilização por drenagem puramente vertical (<code>U_v</code>) é excessivo para os prazos da obra, instalam-se geodrenos pré-fabricados em malha quadrada ou triangular (Capítulo 4).</p>
+          <div class="formula-box p-3 rounded-lg text-xs space-y-2">
+            <div><strong>Diâmetro da Célula Unitária (<code>d_e</code>):</strong></div>
+            <div>Malha Triangular: <code>d_e = 1,05 &middot; l</code> &nbsp;|&nbsp; Malha Quadrada: <code>d_e = 1,13 &middot; l</code></div>
+            <div class="pt-1"><strong>Adensamento Radial de Barron (1948) — Deformações Iguais:</strong></div>
+            <div><code>T_h = (c_h &middot; t) / d_e²</code> &nbsp;&rArr;&nbsp; <code>U_h = 1 - exp[ -8 &middot; T_h / F(n) ]</code></div>
+            <div>Sem amolgamento: <code>F(n) &approx; ln(d_e / d_w) - 0,75</code></div>
+            <div>Com amolgamento (Smear): <code>F = ln(n / s) + (k_h / k_s)&middot;ln(s) - 0,75</code></div>
+            <div class="pt-1 border-t border-slate-200"><strong>Resistência hidráulica longitudinal (Orleach / Hansbo, Eqs. 4.20 e 4.21):</strong></div>
+            <div><code>W_q = 2&pi; &middot; k_h &middot; L² / q_w</code>; desprezar quando <code>W_q &lt; 0,1</code>.</div>
+            <div><code>F_q(z) = &pi; &middot; z &middot; (2L - z) &middot; k_h / q_w</code>; no simulador, adota-se <code>F_q,médio = (2&pi;/3) &middot; k_h &middot; L² / q_w</code>, média espacial para <code>0 &le; z &le; L</code>.</div>
+            <div><code>F_final = F(n) + F_s + F_q,médio</code> (com adição de <code>F_q</code> apenas quando habilitado e <code>W_q &ge; 0,1</code>).</div>
+            <div class="text-slate-500">Para uma saída, L = comprimento total do geodreno; para duas saídas, L = metade do comprimento total. <code>q_w</code> é a vazão por gradiente hidráulico unitário, convertida internamente de m³/ano para m³/s.</div>
+            <div class="pt-1 border-t border-slate-200"><strong>Drenagem Combinada Tridimensional — Carrillo (1942):</strong></div>
+            <div><code>U = 1 - (1 - U_h) &middot; (1 - U_v)</code></div>
+          </div>
+          <p class="text-xs text-slate-600"><strong>Por que a malha triangular é preferida?</strong> Ela proporciona um recobrimento mais uniforme entre os cilindros de influência e resulta em menor <code>d_e</code> para um mesmo espaçamento <code>l</code>.</p>
+        `
+      },
+      sobrecarga: {
+        title: "Sobrecarga Temporária para Aceleração e Compensação (Seção 4.4)",
+        html: `
+          <p>A aplicação de uma espessura adicional temporária de aterro (<code>h_s</code>) cumpre dois papéis: <strong>acelerar o recalque primário</strong> e <strong>compensar antecipadamente o recalque secundário</strong> (Fig. 3.10 e Fig. 4.10).</p>
+          <div class="formula-box p-3 rounded-lg text-xs space-y-2">
+            <div><strong>Grau de Adensamento Necessário para Retirada (Eq. 4.32):</strong></div>
+            <div><code>U_s = &Delta;h_alvo / &Delta;h_fs</code></div>
+            <div class="text-slate-500">Onde <code>&Delta;h_alvo</code> é o recalque desejado para a cota definitiva (podendo incluir a parcela secundária de Martins) e <code>&Delta;h_fs</code> é o recalque a tempo infinito sob a carga total <code>h_at + h_s</code>.</div>
+          </div>
+          <p class="text-xs">Assim que o recalque em campo atinge <code>&Delta;h_alvo</code> no tempo <code>t_1</code>, a sobrecarga <code>h_s</code> é removida, interrompendo o processo de adensamento adicional.</p>
+        `
+      },
+      vacuo: {
+        title: "Pré-carregamento a Vácuo (Seção 4.3 e Fig. 4.13)",
+        html: `
+          <p>O sistema de pré-carregamento a vácuo aplica uma sucção (usualmente entre <code>-60 kPa</code> e <code>-75 kPa</code>) no interior dos drenos verticais sob uma membrana impermeável selada.</p>
+          <ul class="list-disc pl-5 space-y-1.5 text-xs">
+            <li><strong>Aumento Isotrópico de Tensão Efetiva:</strong> Ao contrário de um aterro convencional que aumenta a tensão total e gera elevadas tensões cisalhantes nas bordas (risco de ruptura), o vácuo reduz a poropressão (<code>-&Delta;u</code>), aumentando diretamente a tensão efetiva sem induzir ruptura!</li>
+            <li><strong>Ausência de Perda por Submersão:</strong> Como a carga de vácuo não é um peso gravitacional que afunda na água, a sucção permanece integral durante os recalques.</li>
+          </ul>
+        `
+      },
+      aterro_etapas: {
+        title: "Recalques de Aterro Construído em Etapas (Seção 3.2, Eqs. 3.17 a 3.22)",
+        html: `
+          <p>Quando a resistência não drenada inicial da argila (<code>S_u</code>) não suporta a altura total do aterro de uma só vez, executa-se o aterro em etapas, aguardando o ganho de resistência por adensamento parcial (usualmente quando <code>U_1 &ge; 60%</code>).</p>
+          <div class="formula-box p-3 rounded-lg text-xs space-y-1.5">
+            <div><strong>Roteiro de Atualização na Mudança de Etapa (Tempo <code>t_1</code> — Fig. 3.18):</strong></div>
+            <div>1. Espessura atualizada da argila (Eq. 3.18): <code>h_arg1 = h_arg - &Delta;h_1 &middot; U_1(t_1)</code></div>
+            <div>2. Tensão efetiva atingida em <code>t_1</code> (Eq. 3.19): <code>&sigma;'_v1 = &sigma;'_vo + U_1(t_1) &middot; (&gamma;_at &middot; h_1)</code></div>
+            <div>3. Poropressão residual da Etapa 1 (Eq. 3.20): <code>&Delta;&sigma;'_v1 = (1 - U_1(t_1)) &middot; (&gamma;_at &middot; h_1)</code></div>
+            <div>4. Acréscimo da nova Etapa 2 (Eq. 3.21): <code>&Delta;&sigma;'_v2 = &gamma;_at &middot; h_2</code></div>
+            <div>5. Novo recalque da Fase 2 (Eq. 3.22):</div>
+            <div><code>&Delta;h_2 = h_arg1 &middot; [C_c / (1 + e_vo)] &middot; log[ (&sigma;'_v1 + &Delta;&sigma;'_v1 + &Delta;&sigma;'_v2) / &sigma;'_v1 ]</code></div>
+          </div>
+        `
+      },
+      sensibilidade: {
+        title: "Análise de Sensibilidade Paramétrica em Solos Moles",
+        html: `
+          <p>A Análise de Sensibilidade permite visualizar relações fundamentais de projeto destacadas no livro:</p>
+          <ul class="list-disc pl-5 space-y-1.5 text-xs">
+            <li><strong>Relação Quadrática com a Distância de Drenagem (Fig. 3.11):</strong> O tempo de adensamento cresce com o <em>quadrado</em> da espessura da camada (<code>t &propto; h_d²</code>) na drenagem vertical e com o quadrado do espaçamento (<code>t &propto; d_e² &middot; F(n)</code>) nos geodrenos.</li>
+            <li><strong>Relação Logarítmica com a Carga:</strong> O recalque primário cresce logaritmicamente com a altura do aterro (<code>h_at</code>), mas linearmente com a razão de compressão <code>CR</code>.</li>
+          </ul>
+        `
+      },
+      limitacoes: {
+        title: "Limitações das Análises Teóricas 1D e Radiais (Seções 3.3 e 4.5)",
+        html: `
+          <p>Para formar um engenheiro geotécnico completo, o livro enfatiza que as previsões analíticas possuem limitações que justificam o monitoramento de campo:</p>
+          <ul class="list-disc pl-5 space-y-2 text-xs">
+            <li><strong>Deslocamentos Horizontais e Extrusão Lateral:</strong> Perto das bordas do aterro, o estado de tensões é bidimensional/tridimensional. Deslocamentos horizontais geram recalques adicionais imediatos e diferidos no tempo que não aparecem na teoria edométrica 1D.</li>
+            <li><strong>Redução de <code>c_v</code> na Passagem para o Trecho Virgem:</strong> Quando a argila passa do estado sobreadensado para o normalmente adensado, o coeficiente de adensamento sofre uma queda acentuada (por vezes de 5 a 10 vezes menor).</li>
+            <li><strong>Resistência Hidráulica e Amolgamento:</strong> A cravação do mandril dos geodrenos destrói a estrutura natural da argila no entorno imediato do dreno (zona amolgada), reduzindo a permeabilidade horizontal local (<code>k_s &lt; k_h</code>).</li>
+          </ul>
+        `
+      }
+    };
+
+    function openTheoryModal(key) {
+      const item = THEORY_CONTENT[key] || THEORY_CONTENT.visao_geral;
+      document.getElementById('modalTitle').innerHTML = item.title;
+      document.getElementById('modalBody').innerHTML = item.html;
+      const modal = document.getElementById('theoryModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeTheoryModal() {
+      const modal = document.getElementById('theoryModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    // ============================================================================
+    // 2. PRESETS DIDÁTICOS DO LIVRO
+    // ============================================================================
+    function applyPreset(preset) {
+      if (preset === 'default') {
+        setVal('harg', 10.0);
+        document.getElementById('drainageType').value = 'double';
+        document.getElementById('num_evo').value = 2.20;
+        document.getElementById('num_gama_arg').value = 16.0;
+        document.getElementById('num_gama_w').value = 10.0;
+        document.getElementById('num_OCR').value = (35 / 30).toFixed(6);
+        document.getElementById('num_cc').value = 1.28;
+        document.getElementById('num_cs').value = 0.15;
+        document.getElementById('num_cv').value = 5.0;
+        document.getElementById('num_ch').value = 10.0;
+        setVal('hat', 3.0);
+        document.getElementById('num_gama_at').value = 18.0;
+        document.getElementById('num_gama_sub').value = 10.0;
+        document.getElementById('num_dhi').value = 0.05;
+        document.getElementById('num_tac').value = 18;
+        document.getElementById('num_tmax').value = 60;
+        document.getElementById('chk_submersao').checked = false;
+        document.getElementById('chk_cotafixa').checked = false;
+        document.getElementById('chk_drenos').checked = true;
+        setVal('spacing', 1.50);
+        document.getElementById('chk_sobrecarga').checked = true;
+        setVal('hs', 1.50);
+        document.getElementById('chk_vacuo').checked = false;
+        document.getElementById('chk_etapas').checked = true;
+      } else if (preset === 'fig37') {
+        // Exemplo Fig. 3.7: harg = 15m, hat = 3m, CR = 0.40, gama_at = 17, N.A. = N.T.
+        setVal('harg', 15.0);
+        document.getElementById('drainageType').value = 'double';
+        document.getElementById('num_evo').value = 2.00;
+        document.getElementById('num_gama_arg').value = 14.0;
+        document.getElementById('num_gama_w').value = 10.0;
+        document.getElementById('num_OCR').value = 1.0; // Normalmente adensada
+        document.getElementById('num_cc').value = 1.20; // CR = 1.20 / 3.0 = 0.40
+        document.getElementById('num_cs').value = 0.12;
+        setVal('hat', 3.0);
+        document.getElementById('num_gama_at').value = 17.0;
+        document.getElementById('num_gama_sub').value = 7.2;
+        document.getElementById('num_dhi').value = 0.00;
+        document.getElementById('chk_submersao').checked = true;
+        document.getElementById('chk_cotafixa').checked = false;
+        switchTab('tab_abaco');
+      } else if (preset === 'fig310') {
+        // Exemplo Fig. 3.10: argila 3m, cv = 5x10^-8, sobrecarga temporária
+        setVal('harg', 3.0);
+        document.getElementById('drainageType').value = 'single';
+        document.getElementById('num_evo').value = 2.00;
+        document.getElementById('num_gama_arg').value = 20.0;
+        document.getElementById('num_gama_w').value = 10.0;
+        document.getElementById('num_OCR').value = 1.0;
+        document.getElementById('num_cc').value = 1.10;
+        document.getElementById('num_cv').value = 5.0;
+        setVal('hat', 3.45);
+        document.getElementById('num_gama_at').value = 18.0;
+        document.getElementById('num_dhi').value = 0.00;
+        document.getElementById('num_tac').value = 22;
+        document.getElementById('num_tmax').value = 30;
+        document.getElementById('chk_submersao').checked = false;
+        document.getElementById('chk_drenos').checked = false;
+        document.getElementById('chk_sobrecarga').checked = true;
+        setVal('hs', 1.55); // Total 5.0m como na Fig 3.10
+        document.getElementById('sel_sc_drenagem').value = 'vertical';
+        document.getElementById('chk_etapas').checked = false;
+        switchTab('tab_main');
+      } else if (preset === 'etapas') {
+        setVal('harg', 12.0);
+        document.getElementById('num_gama_arg').value = 15.0;
+        document.getElementById('num_gama_w').value = 10.0;
+        document.getElementById('num_OCR').value = (35 / 30).toFixed(6);
+        document.getElementById('drainageType').value = 'double';
+        setVal('hat', 4.5);
+        document.getElementById('chk_drenos').checked = true;
+        setVal('spacing', 1.40);
+        document.getElementById('chk_etapas').checked = true;
+        document.getElementById('sel_num_etapas').value = '3';
+        document.getElementById('num_he1').value = 2.0;
+        document.getElementById('num_he2').value = 1.5;
+        document.getElementById('num_te2').value = 6;
+        document.getElementById('num_he3').value = 1.0;
+        document.getElementById('num_te3').value = 12;
+        document.getElementById('num_tmax').value = 36;
+        switchTab('tab_main');
+      } else if (preset === 'vacuo') {
+        setVal('harg', 14.0);
+        document.getElementById('num_gama_arg').value = (10 + 60 / 14).toFixed(6);
+        document.getElementById('num_gama_w').value = 10.0;
+        document.getElementById('num_OCR').value = (35 / 30).toFixed(6);
+        setVal('hat', 2.5);
+        document.getElementById('chk_drenos').checked = true;
+        setVal('spacing', 1.20);
+        document.getElementById('chk_vacuo').checked = true;
+        document.getElementById('num_vacuo_kpa').value = 70;
+        document.getElementById('chk_sobrecarga').checked = true;
+        setVal('hs', 2.0);
+        switchTab('tab_main');
+      }
+      document.getElementById('num_pvd_len').value = document.getElementById('num_harg').value;
+      onToggleCotaFixa();
+      toggleConditionalUI();
+      recalculateAll();
+    }
+
+    function setVal(idSuffix, val) {
+      const rng = document.getElementById('rng_' + idSuffix);
+      const num = document.getElementById('num_' + idSuffix);
+      const lbl = document.getElementById('val_' + idSuffix);
+      if (rng) rng.value = val;
+      if (num) num.value = val;
+      if (lbl) lbl.textContent = Number(val).toFixed(idSuffix === 'spacing' || idSuffix === 'hat' || idSuffix === 'hs' ? 2 : 1) + (idSuffix === 'harg' ? '' : ' m');
+    }
+
+    function syncInput(idSuffix, val) {
+      if (idSuffix === 'harg') {
+        const inputHarg = document.getElementById('num_harg');
+        const prev = parseFloat(inputHarg.dataset.previous ?? inputHarg.value);
+        const pvd = document.getElementById('num_pvd_len');
+        if (Math.abs(parseFloat(pvd.value) - prev) < 1e-6) pvd.value = val;
+      }
+      setVal(idSuffix, val);
+      recalculateAll();
+    }
+
+    function setNormallyConsolidated() {
+      document.getElementById('num_OCR').value = '1.0';
+      recalculateAll();
+    }
+
+    function onToggleCotaFixa() {
+      const isCotaFixa = document.getElementById('chk_cotafixa').checked;
+      const lbl = document.getElementById('lbl_hat_input');
+      if (isCotaFixa) {
+        lbl.innerHTML = `Cota Fixa Final Desejada <code>c_fixa</code> (m)`;
+        lbl.className = "font-semibold text-emerald-700";
+      } else {
+        lbl.innerHTML = `Altura de Aterro Lançado <code>h_at</code> (m)`;
+        lbl.className = "font-medium text-slate-700";
+      }
+      recalculateAll();
+    }
+
+    function toggleConditionalUI() {
+      // Terzaghi tc
+      const chkTc = document.getElementById('chk_terzaghi_tc').checked;
+      document.getElementById('box_tc_input').classList.toggle('hidden', !chkTc);
+
+      // Secundário
+      const secMode = document.getElementById('sel_secundario').value;
+      document.getElementById('box_sec_tradicional').classList.toggle('hidden', secMode !== 'tradicional');
+      document.getElementById('box_sec_martins').classList.toggle('hidden', secMode !== 'martins');
+
+      // Drenos
+      const chkDrenos = document.getElementById('chk_drenos').checked;
+      document.getElementById('panel_drenos').classList.toggle('hidden', !chkDrenos);
+
+      // Smear
+      const chkSmear = document.getElementById('chk_smear').checked;
+      document.getElementById('box_smear_inputs').classList.toggle('hidden', !chkSmear);
+      document.getElementById('box_well_inputs').classList.toggle('hidden', !document.getElementById('chk_well_resistance').checked);
+
+      // Sobrecarga
+      const chkSc = document.getElementById('chk_sobrecarga').checked;
+      document.getElementById('panel_sobrecarga').classList.toggle('hidden', !chkSc);
+
+      // Vácuo
+      const chkVac = document.getElementById('chk_vacuo').checked;
+      document.getElementById('panel_vacuo').classList.toggle('hidden', !chkVac);
+
+      // Etapas
+      const chkEtapas = document.getElementById('chk_etapas').checked;
+      document.getElementById('panel_etapas').classList.toggle('hidden', !chkEtapas);
+      const numEtapas = parseInt(document.getElementById('sel_num_etapas').value, 10);
+      document.getElementById('row_etapa3').classList.toggle('hidden', numEtapas < 3);
+    }
+
+    function toggleLoadingChart() {
+      const show = document.getElementById('chk_show_loading_chart').checked;
+      document.getElementById('container_loading_chart').classList.toggle('hidden', !show);
+    }
+
+    function switchTab(tabId) {
+      ['tab_main', 'tab_sens', 'tab_abaco'].forEach(id => {
+        document.getElementById(id).classList.toggle('hidden', id !== tabId);
+      });
+      const activeClasses = ['bg-white', 'text-geo-700', 'border-t', 'border-x', 'border-slate-200', '-mb-px'];
+      const inactiveClasses = ['text-slate-600', 'hover:text-slate-900'];
+
+      [
+        { btn: 'btn_tab_main', id: 'tab_main' },
+        { btn: 'btn_tab_sens', id: 'tab_sens' },
+        { btn: 'btn_tab_abaco', id: 'tab_abaco' }
+      ].forEach(item => {
+        const el = document.getElementById(item.btn);
+        if (item.id === tabId) {
+          el.classList.add(...activeClasses);
+          el.classList.remove(...inactiveClasses);
+        } else {
+          el.classList.remove(...activeClasses);
+          el.classList.add(...inactiveClasses);
+        }
+      });
+
+      if (tabId === 'tab_sens') updateSensitivityChart();
+      if (tabId === 'tab_abaco') updateAbacoAndIterationsCharts();
+    }
+
+    // ============================================================================
+    // 3. MOTOR MATEMÁTICO GEOTÉCNICO (ESTRITAMENTE BASEADO NO LIVRO)
+    // ============================================================================
+
+    /**
+     * Eq. 3.1: Calcula o recalque primário para um dado estado de tensão inicial e incremento dSigma
+     */
+    function calcOedometricSettlement(h_layer, evo, sig_vo, sig_vm, cc, cs, dSigma) {
+      if (dSigma <= 0 || h_layer <= 0) return 0;
+      const CR = cc / (1 + evo);
+      const RR = cs / (1 + evo);
+      const sig_vf = sig_vo + dSigma;
+      const eff_sig_vm = Math.max(sig_vo, sig_vm); // Garante OCR >= 1
+
+      if (sig_vf <= eff_sig_vm) {
+        // Trecho puramente sobreadensado (recompressão)
+        return h_layer * RR * Math.log10(sig_vf / sig_vo);
+      } else {
+        // Trecho de recompressão até sig_vm + trecho virgem acima de sig_vm
+        const dh_rec = eff_sig_vm > sig_vo ? h_layer * RR * Math.log10(eff_sig_vm / sig_vo) : 0;
+        const dh_vir = h_layer * CR * Math.log10(sig_vf / eff_sig_vm);
+        return dh_rec + dh_vir;
+      }
+    }
+
+    /**
+     * Calcula o recalque primário considerando Submersão (Eq. 3.4) e/ou Cota Fixa (Eq. 3.5)
+     * Retorna { dh, hat_needed, dSigma_final, iterationsArray }
+     */
+    function solvePrimarySettlement(params, h_input, isCotaFixa, considerSubmersion) {
+      const { harg, evo, sigvo, sigvm, cc, cs, gama_at, gama_sub, fator2I } = params;
+      const iterations = [];
+
+      // Iteração 1: Sem submersão e assumindo hat = h_input
+      let dSigma_1 = fator2I * gama_at * h_input;
+      let dh = calcOedometricSettlement(harg, evo, sigvo, sigvm, cc, cs, dSigma_1);
+      iterations.push(dh);
+
+      if (!isCotaFixa && !considerSubmersion) {
+        return {
+          dh,
+          hat_needed: h_input,
+          dSigma_final: dSigma_1,
+          iterations
+        };
+      }
+
+      // Loop iterativo (Eq. 3.4 ou Eq. 3.5)
+      let current_dh = dh;
+      let dSigma = dSigma_1;
+      for (let j = 2; j <= 20; j++) {
+        if (isCotaFixa) {
+          // h_input é a cota fixa desejada (c_fixa). A espessura total lançada é c_fixa + current_dh.
+          const c_fixa = h_input;
+          if (considerSubmersion) {
+            // Eq. 3.5: trecho acima do NA = c_fixa (peso gama_at); trecho submerso = current_dh (peso gama_sub)
+            dSigma = fator2I * (gama_at * c_fixa + gama_sub * current_dh);
+          } else {
+            dSigma = fator2I * gama_at * (c_fixa + current_dh);
+          }
+        } else {
+          // Altura de aterro lançado h_at é fixa = h_input, mas parte dele submerge (Eq. 3.4)
+          const h2 = Math.min(h_input, current_dh); // Trecho submerso
+          const h1 = Math.max(0, h_input - h2);     // Trecho não submerso
+          dSigma = fator2I * (gama_at * h1 + gama_sub * h2);
+        }
+
+        const next_dh = calcOedometricSettlement(harg, evo, sigvo, sigvm, cc, cs, dSigma);
+        iterations.push(next_dh);
+        current_dh = next_dh;
+      }
+
+      const hat_needed = isCotaFixa ? (h_input + current_dh) : h_input;
+      return {
+        dh: current_dh,
+        hat_needed,
+        dSigma_final: dSigma,
+        iterations
+      };
+    }
+
+    /**
+     * Grau de Adensamento Vertical 1D Uv(t) — Teoria de Terzaghi (Eqs. 3.7, 3.8 e 3.9)
+     */
+    function calcUv(t_months, cv_m2_month, hd) {
+      if (t_months <= 0) return 0;
+      const Tv = (cv_m2_month * t_months) / (hd * hd);
+      // Ponto de transição Uv = 52% -> Tv = (pi/4)*(0.52)^2 = 0.2124
+      if (Tv <= 0.2124) {
+        return Math.sqrt((4 * Tv) / Math.PI);
+      } else {
+        // Tv = 1.781 - 0.933 * log10(100 - Uv%)
+        const logTerm = (1.781 - Tv) / 0.933;
+        const remPercent = Math.pow(10, logTerm);
+        const uv = 1 - (remPercent / 100);
+        return Math.min(0.9999, Math.max(0, uv));
+      }
+    }
+
+    /**
+     * Inversa de Terzaghi: Fator Tempo Tv necessário para um dado Uv (0 a 0.999)
+     */
+    function calcTvFromUv(uv) {
+      if (uv <= 0) return 0;
+      if (uv <= 0.52) {
+        return (Math.PI / 4) * uv * uv;
+      } else {
+        const uvPercent = Math.min(99.99, uv * 100);
+        return 1.781 - 0.933 * Math.log10(100 - uvPercent);
+      }
+    }
+
+    /**
+     * Fator F(n) e Grau de Adensamento Radial Uh(t) — Barron (1948)
+     */
+    function calcBarronFn(spacing, malha, dw, useSmear, smear_s, smear_khks, wellResistance = null) {
+      const de = (malha === 'triangular' ? 1.05 : 1.13) * spacing;
+      const n = Math.max(1.5, de / dw);
+      const Fn_base = ((n * n) / (n * n - 1)) * Math.log(n) - (3 * n * n - 1) / (4 * n * n);
+      let Fn = Fn_base;
+      let Fs = 0;
+      if (useSmear && smear_s > 1.0) {
+        const s = Math.min(n - 0.1, smear_s);
+        Fn = Math.log(n / s) + smear_khks * Math.log(s) - 0.75;
+        Fs = Fn - Fn_base;
+      }
+
+      let Wq = 0;
+      let Fq = 0;
+      if (wellResistance && wellResistance.qw > 0 && wellResistance.kh > 0 && wellResistance.L > 0) {
+        // q_w é capacidade de descarga por gradiente unitário; converter m³/ano -> m³/s.
+        const qw_m3_s = wellResistance.qw / (365 * 24 * 3600);
+        const kL2_q = wellResistance.kh * wellResistance.L * wellResistance.L / qw_m3_s;
+        // Orleach (1983): W_q = 2*pi*k_h*L²/q_w.
+        Wq = 2 * Math.PI * kL2_q;
+        if (wellResistance.enabled && Wq >= 0.1) {
+          // Hansbo (1981): F_q(z) = pi*z*(2L-z)*k_h/q_w.
+          // Sem parâmetro z, integrar em 0..L: F_q,médio = (2*pi/3)*k_h*L²/q_w.
+          Fq = (2 * Math.PI / 3) * kL2_q;
+          Fn += Fq;
+        }
+      }
+      return { de, n, Fs, Fq, Wq, Fn: Math.max(0.1, Fn) };
+    }
+
+    function calcUh(t_months, ch_m2_month, de, Fn) {
+      if (t_months <= 0) return 0;
+      const Th = (ch_m2_month * t_months) / (de * de);
+      const uh = 1 - Math.exp((-8 * Th) / Fn);
+      return Math.min(0.9999, Math.max(0, uh));
+    }
+
+    /**
+     * Grau de Adensamento Combinado U(t) — Carrillo (1942): U = 1 - (1 - Uh)*(1 - Uv)
+     */
+    function calcDegreeOfConsolidation(t_months, mode, params) {
+      if (t_months <= 0) return 0;
+      const uv = calcUv(t_months, params.cv_month, params.hd);
+      if (mode === 'vertical') return uv;
+      const uh = calcUh(t_months, params.ch_month, params.de, params.Fn);
+      if (mode === 'radial') return uh;
+      // Combinada Carrillo
+      return 1 - (1 - uh) * (1 - uv);
+    }
+
+    /**
+     * Aplica correção de período construtivo não-instantâneo de Terzaghi (Fig. 3.12) se ativo
+     */
+    function calcDegreeWithTc(t_months, mode, params) {
+      if (!params.useTc || params.tc <= 0) {
+        return calcDegreeOfConsolidation(t_months, mode, params);
+      }
+      const tc = params.tc;
+      if (t_months <= tc) {
+        // Proporcional à carga em t/2
+        return (t_months / tc) * calcDegreeOfConsolidation(t_months / 2, mode, params);
+      } else {
+        // Deslocado de tc / 2
+        return calcDegreeOfConsolidation(t_months - tc / 2, mode, params);
+      }
+    }
+
+    /**
+     * Encontra numericamente (bisseção) o tempo t (meses) para atingir um grau U_target
+     */
+    function findTimeForDegree(u_target, mode, params) {
+      if (u_target <= 0) return 0;
+      if (u_target >= 0.999) u_target = 0.995;
+      let low = 0;
+      let high = 2400; // 200 anos
+      for (let i = 0; i < 40; i++) {
+        const mid = 0.5 * (low + high);
+        const u = calcDegreeWithTc(mid, mode, params);
+        if (u < u_target) low = mid;
+        else high = mid;
+      }
+      return 0.5 * (low + high);
+    }
+
+    /**
+     * Parcela de compressão secundária tradicional no tempo t
+     */
+    function calcSecondaryAtTime(t_months, params) {
+      if (params.secMode !== 'tradicional') return 0;
+      if (t_months <= params.tp_star) return 0;
+      return ((params.calpha * params.harg) / (1 + params.evo)) * Math.log10(t_months / params.tp_star);
+    }
+
+    // ============================================================================
+    // 4. COLETA DE PARÂMETROS E EXECUÇÃO DE TODOS OS CENÁRIOS
+    // ============================================================================
+    function readAllParams() {
+      const harg = parseFloat(document.getElementById('num_harg').value) || 10.0;
+      const drainageType = document.getElementById('drainageType').value;
+      const hd = drainageType === 'double' ? harg / 2.0 : harg;
+
+      const evo = parseFloat(document.getElementById('num_evo').value) || 2.20;
+      const gama_arg = parseFloat(document.getElementById('num_gama_arg').value);
+      const gama_w = parseFloat(document.getElementById('num_gama_w').value);
+      const OCR = parseFloat(document.getElementById('num_OCR').value);
+      // Tensões no centro da camada homogênea saturada, com N.A. = N.T.
+      const sigtotal = gama_arg * harg / 2;
+      const sigvo = (gama_arg - gama_w) * harg / 2;
+      const sigvm = OCR * sigvo;
+      const cc = parseFloat(document.getElementById('num_cc').value) || 1.28;
+      const cs = parseFloat(document.getElementById('num_cs').value) || 0.15;
+
+      const cv_raw = parseFloat(document.getElementById('num_cv').value) || 5.0;
+      const ch_raw = parseFloat(document.getElementById('num_ch').value) || 10.0;
+      // 1 mês = 30 dias * 86400 s = 2.592e6 s -> 10^-8 * 2.592e6 = 0.02592
+      const cv_month = cv_raw * 0.02592;
+      const ch_month = ch_raw * 0.02592;
+
+      const hat_input = parseFloat(document.getElementById('num_hat').value) || 3.0;
+      const gama_at = parseFloat(document.getElementById('num_gama_at').value) || 18.0;
+      const gama_sub = parseFloat(document.getElementById('num_gama_sub').value) || 10.0;
+      const fator2I = parseFloat(document.getElementById('num_fatorI').value) || 1.0;
+      const dhi = parseFloat(document.getElementById('num_dhi').value) || 0.0;
+      const tac = parseFloat(document.getElementById('num_tac').value) || 18.0;
+      const tmax = parseFloat(document.getElementById('num_tmax').value) || 60.0;
+
+      const considerSubmersion = document.getElementById('chk_submersao').checked;
+      const isCotaFixa = document.getElementById('chk_cotafixa').checked;
+      const useTc = document.getElementById('chk_terzaghi_tc').checked;
+      const tc = parseFloat(document.getElementById('num_tc').value) || 2.0;
+
+      const secMode = document.getElementById('sel_secundario').value;
+      const calpha = parseFloat(document.getElementById('num_calpha').value) || 0.04;
+      const tp_star = parseFloat(document.getElementById('num_tp_star').value) || 24.0;
+
+      // Drenos
+      const useDrenos = document.getElementById('chk_drenos').checked;
+      const spacing = parseFloat(document.getElementById('num_spacing').value) || 1.5;
+      const malha = document.getElementById('sel_malha').value;
+      const dw = parseFloat(document.getElementById('num_dw').value) || 0.05;
+      const useSmear = document.getElementById('chk_smear').checked;
+      const smear_s = parseFloat(document.getElementById('num_smear_s').value) || 2.5;
+      const smear_khks = parseFloat(document.getElementById('num_smear_khks').value) || 2.0;
+      const plotUh = document.getElementById('chk_plot_uh').checked;
+      const plotUcomb = document.getElementById('chk_plot_ucomb').checked;
+      const useWellResistance = document.getElementById('chk_well_resistance').checked;
+      const qw = parseFloat(document.getElementById('num_qw').value);
+      const kh = parseFloat(document.getElementById('num_kh').value);
+      const pvd_len = parseFloat(document.getElementById('num_pvd_len').value);
+      const pvd_ends = document.getElementById('sel_pvd_ends').value;
+      const L = pvd_ends === 'double' ? pvd_len / 2 : pvd_len;
+
+      const barron = calcBarronFn(spacing, malha, dw, useSmear, smear_s, smear_khks,
+        { enabled: useWellResistance, qw, kh, L });
+
+      // Sobrecarga
+      const useSobrecarga = document.getElementById('chk_sobrecarga').checked;
+      const hs = parseFloat(document.getElementById('num_hs').value) || 1.5;
+      const scDrenagem = document.getElementById('sel_sc_drenagem').value;
+      const scCompSec = document.getElementById('chk_sc_comp_sec').checked;
+
+      // Vácuo
+      const useVacuo = document.getElementById('chk_vacuo').checked;
+      const vacuoKpa = parseFloat(document.getElementById('num_vacuo_kpa').value) || 70.0;
+      const vacuoDesligar = document.getElementById('chk_vacuo_ desligar').checked;
+
+      // Etapas
+      const useEtapas = document.getElementById('chk_etapas').checked;
+      const numEtapas = parseInt(document.getElementById('sel_num_etapas').value, 10);
+      const etapasDrenagem = document.getElementById('sel_etapas_drenagem').value;
+      const he1 = parseFloat(document.getElementById('num_he1').value) || 1.5;
+      const he2 = parseFloat(document.getElementById('num_he2').value) || 1.0;
+      const te2 = parseFloat(document.getElementById('num_te2').value) || 6.0;
+      const he3 = parseFloat(document.getElementById('num_he3').value) || 0.5;
+      const te3 = parseFloat(document.getElementById('num_te3').value) || 12.0;
+
+      const CR = cc / (1 + evo);
+      const dSigma_at = gama_at * hat_input;
+      const dh_sec_martins = 0.15 * CR * harg; // Eq. 3.16
+
+      return {
+        harg, drainageType, hd, evo, gama_arg, gama_w, sigtotal, sigvo, sigvm, cc, cs, CR, OCR,
+        cv_raw, ch_raw, cv_month, ch_month,
+        hat_input, gama_at, gama_sub, dSigma_at, fator2I, dhi, tac, tmax,
+        considerSubmersion, isCotaFixa, useTc, tc,
+        secMode, calpha, tp_star, dh_sec_martins,
+        useDrenos, spacing, malha, dw, useSmear, smear_s, smear_khks, plotUh, plotUcomb,
+        useWellResistance, qw, kh, pvd_len, pvd_ends, L,
+        de: barron.de, n: barron.n, Fn: barron.Fn, Fs: barron.Fs, Wq: barron.Wq, Fq: barron.Fq,
+        useSobrecarga, hs, scDrenagem, scCompSec,
+        useVacuo, vacuoKpa, vacuoDesligar,
+        useEtapas, numEtapas, etapasDrenagem, he1, he2, te2, he3, te3
+      };
+    }
+
+    // Instâncias de Gráficos Globais
+    let chartLoadingInstance = null;
+    let chartSettlementInstance = null;
+    let chartSensitivityInstance = null;
+    let chartAbacoInstance = null;
+    let chartIterationsInstance = null;
+
+    function recalculateAll() {
+      const p = readAllParams();
+      // Guardar o último h_arg válido para sincronizar o comprimento do geodreno
+      // somente quando este ainda acompanha a espessura da camada.
+      document.getElementById('num_harg').dataset.previous = String(p.harg);
+
+      // Atualizar badges auxiliares na Coluna Esquerda
+      document.getElementById('hdDisplay').textContent = `hd = ${p.hd.toFixed(2)} m`;
+      document.getElementById('lbl_CR').textContent = p.CR.toFixed(3);
+      document.getElementById('lbl_OCR').textContent = p.OCR.toFixed(2);
+      document.getElementById('num_sigtotal').value = Number.isFinite(p.sigtotal) ? p.sigtotal.toFixed(2) : '--';
+      document.getElementById('num_sigvo').value = Number.isFinite(p.sigvo) ? p.sigvo.toFixed(2) : '--';
+      document.getElementById('num_sigvm').value = Number.isFinite(p.sigvm) ? p.sigvm.toFixed(2) : '--';
+      document.getElementById('lbl_tensoes_warning').classList.toggle('hidden', p.gama_arg > p.gama_w && p.OCR >= 1 && p.sigvo > 0);
+      document.getElementById('lbl_delta_sigma').textContent = `${p.dSigma_at.toFixed(2)} kPa`;
+      document.getElementById('lbl_delta_sigma_note').textContent = p.isCotaFixa
+        ? 'Carga nominal sobre a cota pretendida; a altura lançada e a tensão final são determinadas iterativamente. O fator 2·I é mantido.'
+        : 'Carga nominal na base do aterro; o fator geométrico 2·I permanece aplicado no cálculo dos recalques.';
+      document.getElementById('lbl_L').textContent = `L = ${p.L.toFixed(2)} m`;
+      document.getElementById('lbl_Wq').textContent = `Wq = ${p.Wq.toFixed(4)}`;
+      document.getElementById('lbl_Wq_state').textContent = p.useWellResistance
+        ? (p.Wq < 0.1 ? '(desprezível)' : '(considerado)')
+        : '(desativado)';
+      document.getElementById('lbl_Fq').textContent = `Fq = ${p.Fq.toFixed(4)}`;
+      document.getElementById('lbl_ch_cv').textContent = `ch / cv = ${(p.ch_raw / p.cv_raw).toFixed(1)}`;
+      document.getElementById('lbl_cv_mes').textContent = `= ${p.cv_month.toFixed(3)} m²/mês`;
+      document.getElementById('lbl_ch_mes').textContent = `= ${p.ch_month.toFixed(3)} m²/mês`;
+      document.getElementById('lbl_dhsec_martins').textContent = `${p.dh_sec_martins.toFixed(3)} m`;
+      document.getElementById('lbl_Fn').textContent = `F(n) = ${p.Fn.toFixed(2)} (de=${p.de.toFixed(2)}m; Fs=${p.Fs.toFixed(2)}; Fq=${p.Fq.toFixed(3)})`;
+      document.getElementById('lbl_vacuo_eq').textContent = `~${(p.vacuoKpa / p.gama_at).toFixed(2)} m aterro`;
+      document.getElementById('tbl_tac_lbl').textContent = `t_ac = ${p.tac} meses`;
+
+      // 1. Resolver Magnitude do Recalque Primário Final da Cota de Projeto
+      const baseSol = solvePrimarySettlement(p, p.hat_input, p.isCotaFixa, p.considerSubmersion);
+      const dh_f = baseSol.dh;
+      const hat_final = baseSol.hat_needed;
+
+      // 2. Atualizar KPIs Superiores
+      document.getElementById('kpi_dh_prim').textContent = `${dh_f.toFixed(2)} m`;
+      if (p.isCotaFixa) {
+        document.getElementById('kpi_dh_sub_info').innerHTML = `Cota fixa ${p.hat_input.toFixed(1)}m &rArr; Lançar <strong>${hat_final.toFixed(2)}m</strong>`;
+      } else {
+        document.getElementById('kpi_dh_sub_info').textContent = p.considerSubmersion
+          ? `Com submersão (\u0394\u03C3v = ${baseSol.dSigma_final.toFixed(1)} kPa)`
+          : `Sem submersão (\u0394\u03C3v = ${baseSol.dSigma_final.toFixed(1)} kPa)`;
+      }
+
+      const secTotal = p.secMode === 'martins'
+        ? p.dh_sec_martins
+        : (p.secMode === 'tradicional' ? calcSecondaryAtTime(Math.max(p.tmax, 120), p) : 0);
+      const dh_total_est = p.dhi + dh_f + secTotal;
+      document.getElementById('kpi_dh_total').textContent = `${dh_total_est.toFixed(2)} m`;
+      document.getElementById('kpi_dh_total_sub').textContent = `\u0394hi(${p.dhi.toFixed(2)}) + \u0394hf(${dh_f.toFixed(2)}) + \u0394hsec(${secTotal.toFixed(2)})`;
+
+      // 3. Gerar Vetor de Tempo (0 até tmax, com passo fino de 0.25 mês)
+      const dt = p.tmax <= 40 ? 0.25 : 0.5;
+      const timePoints = [];
+      for (let t = 0; t <= p.tmax + 1e-6; t += dt) {
+        timePoints.push(Number(t.toFixed(2)));
+      }
+
+      // Lista de Cenários para o Gráfico e Tabela Comparativa
+      const scenarios = [];
+
+      // CENÁRIO 1: Sem Aceleração (Drenagem Vertical 1D)
+      const curveBase = timePoints.map(t => {
+        if (t === 0) return p.dhi;
+        const uv = calcDegreeWithTc(t, 'vertical', p);
+        const sec = calcSecondaryAtTime(t, p);
+        return p.dhi + uv * dh_f + sec;
+      });
+      const t90_base = findTimeForDegree(0.90, 'vertical', p);
+      const u_tac_base = calcDegreeWithTc(p.tac, 'vertical', p);
+      const dh_tac_base = p.dhi + u_tac_base * dh_f + calcSecondaryAtTime(p.tac, p);
+
+      scenarios.push({
+        id: 'base',
+        name: '1. Sem Aceleração (Drenagem Vertical 1D)',
+        color: '#334155',
+        borderDash: [],
+        data: curveBase,
+        dh_tac: dh_tac_base,
+        u_tac: u_tac_base * 100,
+        t90: t90_base,
+        dh_end: curveBase[curveBase.length - 1]
+      });
+
+      // CENÁRIO 2: Drenos Verticais (Radial Pura e/ou Combinada Carrillo)
+      let t90_comb = t90_base;
+      if (p.useDrenos) {
+        if (p.plotUh) {
+          const curveUh = timePoints.map(t => {
+            if (t === 0) return p.dhi;
+            const uh = calcDegreeWithTc(t, 'radial', p);
+            return p.dhi + uh * dh_f + calcSecondaryAtTime(t, p);
+          });
+          const t90_uh = findTimeForDegree(0.90, 'radial', p);
+          const u_tac_uh = calcDegreeWithTc(p.tac, 'radial', p);
+          scenarios.push({
+            id: 'drenos_uh',
+            name: `2a. Geodrenos — Apenas Radial Uh (l = ${p.spacing.toFixed(2)}m)`,
+            color: '#38bdf8',
+            borderDash: [5, 5],
+            data: curveUh,
+            dh_tac: p.dhi + u_tac_uh * dh_f,
+            u_tac: u_tac_uh * 100,
+            t90: t90_uh,
+            dh_end: curveUh[curveUh.length - 1]
+          });
+        }
+
+        if (p.plotUcomb) {
+          const curveUcomb = timePoints.map(t => {
+            if (t === 0) return p.dhi;
+            const u = calcDegreeWithTc(t, 'combinada', p);
+            return p.dhi + u * dh_f + calcSecondaryAtTime(t, p);
+          });
+          t90_comb = findTimeForDegree(0.90, 'combinada', p);
+          const u_tac_comb = calcDegreeWithTc(p.tac, 'combinada', p);
+          scenarios.push({
+            id: 'drenos_comb',
+            name: `2b. Geodrenos — Combinada Carrillo (l = ${p.spacing.toFixed(2)}m)`,
+            color: '#0284c7',
+            borderDash: [],
+            data: curveUcomb,
+            dh_tac: p.dhi + u_tac_comb * dh_f,
+            u_tac: u_tac_comb * 100,
+            t90: t90_comb,
+            dh_end: curveUcomb[curveUcomb.length - 1]
+          });
+        }
+      }
+
+      // Atualizar KPI Card 3 (t90)
+      document.getElementById('kpi_t90_base').textContent = `${t90_base.toFixed(0)} m`;
+      if (p.useDrenos) {
+        const t90_val = findTimeForDegree(0.90, 'combinada', p);
+        document.getElementById('kpi_t90_drenos').textContent = `${t90_val.toFixed(1)} m`;
+        const ok = t90_val <= p.tac;
+        document.getElementById('kpi_t90_status').textContent = ok
+          ? `\u2713 Atende ao prazo tac (${p.tac}m)`
+          : `\u26A0 Excede tac (${p.tac}m) — reduza l`;
+        document.getElementById('kpi_t90_status').className = `text-[11px] font-medium mt-1 ${ok ? 'text-emerald-600' : 'text-rose-600'}`;
+      } else {
+        document.getElementById('kpi_t90_drenos').textContent = `${t90_base.toFixed(1)} m`;
+        document.getElementById('kpi_t90_status').textContent = 'Geodrenos desativados';
+        document.getElementById('kpi_t90_status').className = 'text-[11px] font-medium mt-1 text-slate-500';
+      }
+
+      // CENÁRIO 3: Sobrecarga Temporária
+      let t_ret_sc = null;
+      if (p.useSobrecarga) {
+        const h_total_sc = hat_final + p.hs;
+        const scSol = solvePrimarySettlement(p, h_total_sc, false, p.considerSubmersion);
+        const dh_fs = scSol.dh;
+        const dh_alvo = p.scCompSec ? (dh_f + p.dh_sec_martins) : dh_f;
+        const Us_needed = Math.min(0.99, dh_alvo / Math.max(0.001, dh_fs));
+        const scMode = p.scDrenagem === 'combinada' ? 'combinada' : 'vertical';
+        t_ret_sc = findTimeForDegree(Us_needed, scMode, p);
+
+        document.getElementById('lbl_Us_sc').textContent = `${(Us_needed * 100).toFixed(1)}%`;
+        document.getElementById('lbl_tret_sc').textContent = `${t_ret_sc.toFixed(1)} meses`;
+
+        document.getElementById('kpi_card4_title').textContent = 'Retirada da Sobrecarga';
+        document.getElementById('kpi_card4_val').textContent = `${t_ret_sc.toFixed(1)} meses`;
+        document.getElementById('kpi_card4_sub').textContent = `Alvo ${(dh_alvo + p.dhi).toFixed(2)}m (Us = ${(Us_needed * 100).toFixed(0)}%)`;
+
+        const curveSc = timePoints.map(t => {
+          if (t === 0) return p.dhi;
+          if (t <= t_ret_sc) {
+            const u = calcDegreeWithTc(t, scMode, p);
+            return p.dhi + Math.min(dh_alvo, u * dh_fs);
+          } else {
+            // Sobrecarga removida no tempo t_ret_sc -> recalque estabilizado no alvo!
+            return p.dhi + dh_alvo;
+          }
+        });
+
+        const u_tac_sc = p.tac >= t_ret_sc ? 1.0 : (calcDegreeWithTc(p.tac, scMode, p) * dh_fs) / dh_alvo;
+        scenarios.push({
+          id: 'sobrecarga',
+          name: `3. Sobrecarga Temporária (+${p.hs.toFixed(1)}m, Retirada em ${t_ret_sc.toFixed(1)}m)`,
+          color: '#059669',
+          borderDash: [],
+          data: curveSc,
+          dh_tac: p.tac >= t_ret_sc ? (p.dhi + dh_alvo) : (p.dhi + calcDegreeWithTc(p.tac, scMode, p) * dh_fs),
+          u_tac: Math.min(100, u_tac_sc * 100),
+          t90: t_ret_sc,
+          dh_end: p.dhi + dh_alvo
+        });
+      } else {
+        document.getElementById('kpi_card4_title').textContent = 'Espessura Total Aterro';
+        document.getElementById('kpi_card4_val').textContent = `${hat_final.toFixed(2)} m`;
+        document.getElementById('kpi_card4_sub').textContent = p.isCotaFixa ? 'Para manter Cota Fixa' : 'Altura lançada de projeto';
+      }
+
+      // CENÁRIO 4: Pré-carregamento a Vácuo
+      let t_ret_vac = null;
+      if (p.useVacuo) {
+        const dSigma_vac_total = baseSol.dSigma_final + p.vacuoKpa;
+        const dh_fs_vac = calcOedometricSettlement(p.harg, p.evo, p.sigvo, p.sigvm, p.cc, p.cs, dSigma_vac_total);
+        const dh_alvo_vac = dh_f;
+        const Us_vac = Math.min(0.99, dh_alvo_vac / Math.max(0.001, dh_fs_vac));
+        t_ret_vac = findTimeForDegree(Us_vac, 'combinada', p);
+
+        const curveVac = timePoints.map(t => {
+          if (t === 0) return p.dhi;
+          const u = calcDegreeWithTc(t, 'combinada', p);
+          if (p.vacuoDesligar && t >= t_ret_vac) {
+            return p.dhi + dh_alvo_vac;
+          }
+          return p.dhi + u * dh_fs_vac;
+        });
+
+        const u_tac_vac = p.vacuoDesligar && p.tac >= t_ret_vac
+          ? 1.0
+          : (calcDegreeWithTc(p.tac, 'combinada', p) * dh_fs_vac) / dh_alvo_vac;
+
+        scenarios.push({
+          id: 'vacuo',
+          name: `4. Pré-carregamento a Vácuo (-${p.vacuoKpa} kPa + Geodrenos)`,
+          color: '#7c3aed',
+          borderDash: [6, 3],
+          data: curveVac,
+          dh_tac: curveVac[timePoints.findIndex(x => x >= p.tac) !== -1 ? timePoints.findIndex(x => x >= p.tac) : curveVac.length - 1],
+          u_tac: Math.min(100, u_tac_vac * 100),
+          t90: t_ret_vac,
+          dh_end: curveVac[curveVac.length - 1]
+        });
+      }
+
+      // CENÁRIO 5: Aterro Construído em Etapas (Seção 3.2, Eqs. 3.17 a 3.22)
+      if (p.useEtapas) {
+        const etMode = p.etapasDrenagem === 'combinada' ? 'combinada' : 'vertical';
+        // Etapa 1 (t = 0 até te2)
+        const dSigma1 = p.fator2I * p.gama_at * p.he1;
+        const dh1_inf = calcOedometricSettlement(p.harg, p.evo, p.sigvo, p.sigvm, p.cc, p.cs, dSigma1);
+
+        // No instante t1 = te2 (início da 2ª etapa)
+        const U1_at_t1 = calcDegreeOfConsolidation(p.te2, etMode, p);
+        const dh1_at_t1 = dh1_inf * U1_at_t1;
+        // Eq. 3.18: Atualização da espessura da camada de argila
+        const harg1 = Math.max(0.5, p.harg - dh1_at_t1);
+        // Eq. 3.19: Tensão vertical efetiva no tempo t1
+        const sig_v1 = p.sigvo + U1_at_t1 * dSigma1;
+        // Eq. 3.20: Poropressão residual da etapa 1 que ainda irá dissipar
+        const dSigma_v1_res = (1 - U1_at_t1) * dSigma1;
+        // Eq. 3.21: Acréscimo da etapa 2
+        const dSigma_v2 = p.fator2I * p.gama_at * p.he2;
+        // Eq. 3.22: Recalque total para a segunda fase a partir de t1
+        const dh2_inf = calcOedometricSettlement(harg1, p.evo, sig_v1, Math.max(p.sigvm, sig_v1), p.cc, p.cs, dSigma_v1_res + dSigma_v2);
+
+        // Etapa 3 (se numEtapas === 3, no tempo t2 = te3)
+        let U2_at_t2 = 0, dh2_at_t2 = 0, harg2 = harg1, sig_v2 = sig_v1, dh3_inf = 0;
+        const t2 = Math.max(p.te2 + 0.5, p.te3);
+        if (p.numEtapas === 3) {
+          U2_at_t2 = calcDegreeOfConsolidation(t2 - p.te2, etMode, p);
+          dh2_at_t2 = dh2_inf * U2_at_t2;
+          harg2 = Math.max(0.5, harg1 - dh2_at_t2);
+          const totalStressStep2 = dSigma_v1_res + dSigma_v2;
+          sig_v2 = sig_v1 + U2_at_t2 * totalStressStep2;
+          const dSigma_v2_res = (1 - U2_at_t2) * totalStressStep2;
+          const dSigma_v3 = p.fator2I * p.gama_at * p.he3;
+          dh3_inf = calcOedometricSettlement(harg2, p.evo, sig_v2, Math.max(p.sigvm, sig_v2), p.cc, p.cs, dSigma_v2_res + dSigma_v3);
+        }
+
+        const dh_etapas_total_inf = p.numEtapas === 2
+          ? (dh1_at_t1 + dh2_inf)
+          : (dh1_at_t1 + dh2_at_t2 + dh3_inf);
+
+        // Diagnóstico didático das etapas (Eqs. 3.18 e 3.19)
+        const diagEl = document.getElementById('etapas_diagnostics');
+        const warnU1 = U1_at_t1 < 0.60 ? `<span class="text-rose-600 font-bold">(Atenção: &lt; 60% usual!)</span>` : `<span class="text-emerald-700 font-bold">(&ge; 60% OK)</span>`;
+        diagEl.innerHTML = `
+          <div><strong>Em t₁=${p.te2}m:</strong> U₁ = ${(U1_at_t1 * 100).toFixed(1)}% ${warnU1} | h_arg1 = ${harg1.toFixed(2)}m | &sigma;'_v1 = ${sig_v1.toFixed(1)} kPa</div>
+          ${p.numEtapas === 3 ? `<div><strong>Em t₂=${t2}m:</strong> U₂ = ${(U2_at_t2 * 100).toFixed(1)}% | h_arg2 = ${harg2.toFixed(2)}m | &sigma;'_v2 = ${sig_v2.toFixed(1)} kPa</div>` : ''}
+          <div><strong>Soma Alteamentos:</strong> ${(p.he1 + p.he2 + (p.numEtapas === 3 ? p.he3 : 0)).toFixed(2)}m | <strong>&Delta;h_prim final:</strong> ${dh_etapas_total_inf.toFixed(2)}m</div>
+        `;
+
+        const curveEtapas = timePoints.map(t => {
+          if (t === 0) return p.dhi;
+          if (t <= p.te2) {
+            const u1 = calcDegreeOfConsolidation(t, etMode, p);
+            return p.dhi + dh1_inf * u1;
+          } else if (p.numEtapas === 2 || t <= t2) {
+            const u2 = calcDegreeOfConsolidation(t - p.te2, etMode, p);
+            return p.dhi + dh1_at_t1 + dh2_inf * u2;
+          } else {
+            const u3 = calcDegreeOfConsolidation(t - t2, etMode, p);
+            return p.dhi + dh1_at_t1 + dh2_at_t2 + dh3_inf * u3;
+          }
+        });
+
+        const idxTac = timePoints.findIndex(x => x >= p.tac);
+        const dh_tac_et = curveEtapas[idxTac !== -1 ? idxTac : curveEtapas.length - 1];
+        const u_tac_et = ((dh_tac_et - p.dhi) / Math.max(0.001, dh_etapas_total_inf)) * 100;
+
+        // Tempo para 90% do recalque total das etapas
+        const target90_et = p.dhi + 0.90 * dh_etapas_total_inf;
+        const idx90 = curveEtapas.findIndex(val => val >= target90_et);
+        const t90_et = idx90 !== -1 ? timePoints[idx90] : p.tmax;
+
+        scenarios.push({
+          id: 'etapas',
+          name: `5. Aterro em ${p.numEtapas} Etapas (${etMode === 'combinada' ? 'c/ Geodrenos' : '1D'})`,
+          color: '#d97706',
+          borderDash: [],
+          data: curveEtapas,
+          dh_tac: dh_tac_et,
+          u_tac: Math.min(100, u_tac_et),
+          t90: t90_et,
+          dh_end: curveEtapas[curveEtapas.length - 1]
+        });
+      }
+
+      // 4. Atualizar Gráfico Duplo (Carregamento + Recalques) e Tabela Comparativa
+      updateMainCharts(timePoints, scenarios, p, hat_final, dh_f, t_ret_sc);
+      updateComparisonTable(scenarios, p);
+
+      // Se outra aba estiver visível, atualizá-la também
+      if (!document.getElementById('tab_sens').classList.contains('hidden')) {
+        updateSensitivityChart();
+      }
+      if (!document.getElementById('tab_abaco').classList.contains('hidden')) {
+        updateAbacoAndIterationsCharts();
+      }
+    }
+
+    // ============================================================================
+    // 5. RENDERIZAÇÃO DOS GRÁFICOS (CHART.JS)
+    // ============================================================================
+    function updateMainCharts(timePoints, scenarios, p, hat_final, dh_f, t_ret_sc) {
+      // --- GRÁFICO SUPERIOR: HISTÓRIA DE CARREGAMENTO (ESPESSURA DE ATERRO VS TEMPO) ---
+      const loadingDatasets = [];
+
+      // Curva Aterro Base
+      const baseLoadData = timePoints.map(t => {
+        if (p.useTc && p.tc > 0 && t < p.tc) return (t / p.tc) * hat_final;
+        return hat_final;
+      });
+      loadingDatasets.push({
+        label: 'Aterro Base (h_at)',
+        data: baseLoadData,
+        borderColor: '#334155',
+        backgroundColor: 'rgba(51, 65, 85, 0.08)',
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: true
+      });
+
+      // Curva com Sobrecarga Temporária
+      if (p.useSobrecarga && t_ret_sc !== null) {
+        const scLoadData = timePoints.map(t => (t <= t_ret_sc ? hat_final + p.hs : hat_final));
+        loadingDatasets.push({
+          label: `Com Sobrecarga Temporária (+${p.hs.toFixed(1)}m até ${t_ret_sc.toFixed(1)}m)`,
+          data: scLoadData,
+          borderColor: '#059669',
+          borderWidth: 2,
+          borderDash: [4, 3],
+          pointRadius: 0,
+          stepped: true,
+          fill: false
+        });
+      }
+
+      // Curva de Alteamentos em Etapas
+      if (p.useEtapas) {
+        const t2 = Math.max(p.te2 + 0.5, p.te3);
+        const etapasLoadData = timePoints.map(t => {
+          if (t < p.te2) return p.he1;
+          if (p.numEtapas === 2 || t < t2) return p.he1 + p.he2;
+          return p.he1 + p.he2 + p.he3;
+        });
+        loadingDatasets.push({
+          label: `Alteamento em ${p.numEtapas} Etapas`,
+          data: etapasLoadData,
+          borderColor: '#d97706',
+          backgroundColor: 'rgba(217, 119, 6, 0.12)',
+          borderWidth: 2.5,
+          pointRadius: 0,
+          stepped: true,
+          fill: true
+        });
+      }
+
+      const ctxLoad = document.getElementById('chartLoading').getContext('2d');
+      if (chartLoadingInstance) chartLoadingInstance.destroy();
+      chartLoadingInstance = new Chart(ctxLoad, {
+        type: 'line',
+        data: {
+          labels: timePoints,
+          datasets: loadingDatasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: { boxWidth: 12, font: { size: 10 } }
+            },
+            tooltip: {
+              callbacks: {
+                title: (items) => `Tempo: ${items[0].label} meses`,
+                label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} m`
+              }
+            }
+          },
+          scales: {
+            x: {
+              type: 'linear',
+              min: 0,
+              max: p.tmax,
+              ticks: { font: { size: 10 }, stepSize: Math.max(5, Math.round(p.tmax / 10)) }
+            },
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: 'Altura Aterro (m)', font: { size: 10, weight: 'bold' } },
+              ticks: { font: { size: 10 } }
+            }
+          }
+        }
+      });
+
+      // --- GRÁFICO INFERIOR: RECALQUES VS TEMPO (EIXO Y INVERTIDO) ---
+      const settlementDatasets = scenarios.map(sc => ({
+        label: sc.name,
+        data: sc.data,
+        borderColor: sc.color,
+        backgroundColor: sc.color,
+        borderDash: sc.borderDash,
+        borderWidth: 2.5,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        tension: 0.15
+      }));
+
+      // Anotações (Linha vertical t_ac, linha horizontal dh_f e retirada da sobrecarga)
+      const annotations = {
+        lineTac: {
+          type: 'line',
+          xMin: p.tac,
+          xMax: p.tac,
+          borderColor: '#f59e0b',
+          borderWidth: 2,
+          borderDash: [6, 4],
+          label: {
+            display: true,
+            content: `Prazo tac = ${p.tac}m`,
+            position: 'start',
+            backgroundColor: 'rgba(245, 158, 11, 0.9)',
+            color: '#fff',
+            font: { size: 10, weight: 'bold' }
+          }
+        },
+        lineDhf: {
+          type: 'line',
+          yMin: p.dhi + dh_f,
+          yMax: p.dhi + dh_f,
+          borderColor: '#e11d48',
+          borderWidth: 1.5,
+          borderDash: [4, 4],
+          label: {
+            display: true,
+            content: `Alvo Primário: ${(p.dhi + dh_f).toFixed(2)}m`,
+            position: 'end',
+            backgroundColor: 'rgba(225, 29, 72, 0.85)',
+            color: '#fff',
+            font: { size: 10 }
+          }
+        }
+      };
+
+      if (p.useSobrecarga && t_ret_sc !== null && t_ret_sc <= p.tmax) {
+        annotations.lineTret = {
+          type: 'line',
+          xMin: t_ret_sc,
+          xMax: t_ret_sc,
+          borderColor: '#059669',
+          borderWidth: 1.5,
+          borderDash: [3, 3],
+          label: {
+            display: true,
+            content: `Retirada hs (${t_ret_sc.toFixed(1)}m)`,
+            position: 'center',
+            backgroundColor: 'rgba(5, 150, 105, 0.85)',
+            color: '#fff',
+            font: { size: 9 }
+          }
+        };
+      }
+
+      const ctxSet = document.getElementById('chartSettlement').getContext('2d');
+      if (chartSettlementInstance) chartSettlementInstance.destroy();
+      chartSettlementInstance = new Chart(ctxSet, {
+        type: 'line',
+        data: {
+          labels: timePoints,
+          datasets: settlementDatasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: { boxWidth: 14, font: { size: 11 } }
+            },
+            annotation: { annotations },
+            tooltip: {
+              callbacks: {
+                title: (items) => `Tempo: ${items[0].label} meses`,
+                label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(3)} m`
+              }
+            }
+          },
+          scales: {
+            x: {
+              type: 'linear',
+              min: 0,
+              max: p.tmax,
+              title: { display: true, text: 'Tempo (meses)', font: { size: 11, weight: 'bold' } },
+              ticks: { stepSize: Math.max(5, Math.round(p.tmax / 10)) }
+            },
+            y: {
+              reverse: true, // Padrão Geotécnico: 0.0 m no topo e recalques crescendo para baixo
+              min: 0,
+              title: { display: true, text: 'Recalque Acumulado (m)', font: { size: 11, weight: 'bold' } }
+            }
+          }
+        }
+      });
+    }
+
+    function updateComparisonTable(scenarios, p) {
+      const tbody = document.getElementById('tbody_comparison');
+      tbody.innerHTML = scenarios.map(sc => {
+        const atende = sc.u_tac >= 89.5;
+        const badge = atende
+          ? `<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-sans font-semibold text-[10px]">\u2713 Estabilizado (&ge;90%)</span>`
+          : `<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-sans font-semibold text-[10px]">Em adensamento (${sc.u_tac.toFixed(0)}%)</span>`;
+
+        const t90Text = sc.t90 > 600 ? '> 50 anos' : `${sc.t90.toFixed(1)} meses`;
+
+        return `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="py-2 px-3 font-sans font-medium text-slate-800 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full inline-block" style="background:${sc.color}"></span>
+              ${sc.name}
+            </td>
+            <td class="py-2 px-3 text-right font-semibold text-slate-900">${sc.dh_tac.toFixed(3)} m</td>
+            <td class="py-2 px-3 text-right font-semibold" style="color:${sc.color}">${sc.u_tac.toFixed(1)}%</td>
+            <td class="py-2 px-3 text-right text-slate-700">${t90Text}</td>
+            <td class="py-2 px-3 text-right text-slate-700">${sc.dh_end.toFixed(3)} m</td>
+            <td class="py-2 px-3 text-center">${badge}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // ============================================================================
+    // 6. ABA 2: ANÁLISE DE SENSIBILIDADE PARAMÉTRICA DINÂMICA
+    // ============================================================================
+    function updateSensitivityChart() {
+      const p = readAllParams();
+      const varX = document.getElementById('sel_sens_x').value;
+      const varY = document.getElementById('sel_sens_y').value;
+
+      let xValues = [];
+      let xLabel = '';
+      let currentUserX = 0;
+
+      if (varX === 'spacing') {
+        for (let v = 0.6; v <= 4.01; v += 0.2) xValues.push(Number(v.toFixed(2)));
+        xLabel = 'Espaçamento entre Geodrenos l (m)';
+        currentUserX = p.spacing;
+      } else if (varX === 'harg') {
+        for (let v = 2; v <= 20; v += 1) xValues.push(v);
+        xLabel = 'Espessura da Camada de Argila h_arg (m)';
+        currentUserX = p.harg;
+      } else if (varX === 'hat') {
+        for (let v = 0.5; v <= 8.01; v += 0.5) xValues.push(Number(v.toFixed(1)));
+        xLabel = 'Altura do Aterro h_at (m)';
+        currentUserX = p.hat_input;
+      } else if (varX === 'cc') {
+        for (let v = 0.3; v <= 2.51; v += 0.1) xValues.push(Number(v.toFixed(2)));
+        xLabel = 'Índice de Compressão C_c';
+        currentUserX = p.cc;
+      } else if (varX === 'cv') {
+        for (let v = 1; v <= 25; v += 1.5) xValues.push(Number(v.toFixed(1)));
+        xLabel = 'Coeficiente de Adensamento c_v (10⁻⁸ m²/s)';
+        currentUserX = p.cv_raw;
+      } else if (varX === 'hs') {
+        for (let v = 0.2; v <= 4.01; v += 0.2) xValues.push(Number(v.toFixed(2)));
+        xLabel = 'Altura de Sobrecarga Temporária h_s (m)';
+        currentUserX = p.hs;
+      }
+
+      let yLabel = '';
+      const ySeriesMain = [];
+      const ySeriesAlt = [];
+      let labelMain = '';
+      let labelAlt = '';
+
+      xValues.forEach(x => {
+        // Clonar parâmetros e substituir variável X
+        const sim = { ...p };
+        if (varX === 'spacing') {
+          sim.spacing = x;
+          const b = calcBarronFn(x, sim.malha, sim.dw, sim.useSmear, sim.smear_s, sim.smear_khks,
+            { enabled: sim.useWellResistance, qw: sim.qw, kh: sim.kh, L: sim.L });
+          sim.de = b.de; sim.Fn = b.Fn; sim.Fq = b.Fq; sim.Wq = b.Wq;
+        } else if (varX === 'harg') {
+          sim.harg = x;
+          sim.hd = sim.drainageType === 'double' ? x / 2.0 : x;
+          sim.sigtotal = sim.gama_arg * x / 2;
+          sim.sigvo = (sim.gama_arg - sim.gama_w) * x / 2;
+          sim.sigvm = sim.OCR * sim.sigvo;
+        } else if (varX === 'hat') {
+          sim.hat_input = x;
+        } else if (varX === 'cc') {
+          sim.cc = x;
+        } else if (varX === 'cv') {
+          const ratio = p.ch_raw / Math.max(0.1, p.cv_raw);
+          sim.cv_raw = x;
+          sim.ch_raw = x * ratio;
+          sim.cv_month = x * 0.02592;
+          sim.ch_month = sim.ch_raw * 0.02592;
+        } else if (varX === 'hs') {
+          sim.hs = x;
+        }
+
+        const solBase = solvePrimarySettlement(sim, sim.hat_input, sim.isCotaFixa, false);
+        const solSub = solvePrimarySettlement(sim, sim.hat_input, sim.isCotaFixa, true);
+
+        if (varY === 't90_comb') {
+          yLabel = 'Tempo para 90% de Adensamento (meses)';
+          labelMain = 'Com Geodrenos (Drenagem Combinada)';
+          labelAlt = 'Sem Drenos (Drenagem Vertical 1D)';
+          ySeriesMain.push(findTimeForDegree(0.90, 'combinada', sim));
+          ySeriesAlt.push(findTimeForDegree(0.90, 'vertical', sim));
+        } else if (varY === 'dh_prim') {
+          yLabel = 'Magnitude do Recalque Primário \u0394h_f (m)';
+          labelMain = 'Sem Submersão (Eq. 3.3)';
+          labelAlt = 'Com Submersão do Aterro (Eq. 3.4)';
+          ySeriesMain.push(solBase.dh);
+          ySeriesAlt.push(solSub.dh);
+        } else if (varY === 'u_tac') {
+          yLabel = `Grau de Adensamento U (%) em t_ac = ${sim.tac} meses`;
+          labelMain = 'Com Geodrenos (Drenagem Combinada)';
+          labelAlt = 'Sem Drenos (Drenagem Vertical 1D)';
+          ySeriesMain.push(calcDegreeWithTc(sim.tac, 'combinada', sim) * 100);
+          ySeriesAlt.push(calcDegreeWithTc(sim.tac, 'vertical', sim) * 100);
+        } else if (varY === 't_ret_sc') {
+          yLabel = 'Tempo para Retirada da Sobrecarga (meses)';
+          labelMain = 'Sobrecarga + Geodrenos';
+          labelAlt = 'Sobrecarga Isolada (Vertical 1D)';
+          const dh_f_sim = sim.considerSubmersion ? solSub.dh : solBase.dh;
+          const dh_fs_sim = solvePrimarySettlement(sim, solBase.hat_needed + sim.hs, false, sim.considerSubmersion).dh;
+          const Us_sim = Math.min(0.99, dh_f_sim / Math.max(0.001, dh_fs_sim));
+          ySeriesMain.push(findTimeForDegree(Us_sim, 'combinada', sim));
+          ySeriesAlt.push(findTimeForDegree(Us_sim, 'vertical', sim));
+        }
+      });
+
+      const datasets = [
+        {
+          label: labelMain,
+          data: ySeriesMain,
+          borderColor: '#0284c7',
+          backgroundColor: 'rgba(2, 132, 199, 0.1)',
+          borderWidth: 2.5,
+          tension: 0.25,
+          fill: true
+        },
+        {
+          label: labelAlt,
+          data: ySeriesAlt,
+          borderColor: '#64748b',
+          borderDash: [5, 5],
+          borderWidth: 2,
+          tension: 0.25,
+          fill: false
+        }
+      ];
+
+      const ctxSens = document.getElementById('chartSensitivity').getContext('2d');
+      if (chartSensitivityInstance) chartSensitivityInstance.destroy();
+      chartSensitivityInstance = new Chart(ctxSens, {
+        type: 'line',
+        data: {
+          labels: xValues,
+          datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'top' },
+            annotation: {
+              annotations: {
+                currentPointLine: {
+                  type: 'line',
+                  xMin: currentUserX,
+                  xMax: currentUserX,
+                  borderColor: '#f59e0b',
+                  borderWidth: 2,
+                  borderDash: [4, 4],
+                  label: {
+                    display: true,
+                    content: `Valor Atual: ${currentUserX}`,
+                    position: 'start',
+                    backgroundColor: '#f59e0b',
+                    color: '#fff',
+                    font: { size: 10, weight: 'bold' }
+                  }
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              type: 'linear',
+              title: { display: true, text: xLabel, font: { size: 12, weight: 'bold' } }
+            },
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: yLabel, font: { size: 12, weight: 'bold' } }
+            }
+          }
+        }
+      });
+
+      // Insight Educacional Dinâmico
+      const insightBox = document.getElementById('sens_insight_box');
+      insightBox.innerHTML = `<i class="fa-solid fa-lightbulb text-amber-500 mr-1.5"></i><strong>Análise Física do Comportamento:</strong> A linha vertical tracejada laranja demarca o seu parâmetro atual (<code>${currentUserX}</code>). Observe a não-linearidade entre <strong>${xLabel}</strong> e <strong>${yLabel}</strong>, permitindo escolher o ponto ótimo de projeto sem superdimensionar.`;
+    }
+
+    // ============================================================================
+    // 7. ABA 3: ÁBACO DE COTA FIXA (FIG. 3.8) E CONVERGÊNCIA DA SUBMERSÃO (FIG. 3.7B)
+    // ============================================================================
+    function updateAbacoAndIterationsCharts() {
+      const p = readAllParams();
+
+      // --- GRÁFICO ESQUERDO: ÁBACO DE COTA FIXA (FIG. 3.8) ---
+      const cotasFixas = [0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0];
+      const thicknessesToPlot = [
+        { harg: 5, color: '#10b981', label: 'h_arg = 5 m' },
+        { harg: 10, color: '#0284c7', label: 'h_arg = 10 m' },
+        { harg: 15, color: '#7c3aed', label: 'h_arg = 15 m' },
+        { harg: p.harg, color: '#e11d48', label: `Atual (h_arg = ${p.harg} m)`, dash: [4, 3] }
+      ];
+
+      const abacoDatasets = thicknessesToPlot.map(item => {
+        const simP = { ...p, harg: item.harg };
+        simP.sigtotal = simP.gama_arg * simP.harg / 2;
+        simP.sigvo = (simP.gama_arg - simP.gama_w) * simP.harg / 2;
+        simP.sigvm = simP.OCR * simP.sigvo;
+        const dataY = cotasFixas.map(cf => {
+          if (cf === 0) return 0;
+          const res = solvePrimarySettlement(simP, cf, true, true);
+          return res.hat_needed;
+        });
+        return {
+          label: item.label,
+          data: dataY,
+          borderColor: item.color,
+          borderDash: item.dash || [],
+          borderWidth: item.dash ? 3 : 2,
+          pointRadius: 3,
+          tension: 0.2
+        };
+      });
+
+      // Linha 1:1 (Sem recalque: hat = cota fixa)
+      abacoDatasets.push({
+        label: 'Referência Sem Recalque (h_at = c_fixa)',
+        data: cotasFixas,
+        borderColor: '#94a3b8',
+        borderDash: [2, 2],
+        borderWidth: 1.5,
+        pointRadius: 0
+      });
+
+      const ctxAbaco = document.getElementById('chartAbaco').getContext('2d');
+      if (chartAbacoInstance) chartAbacoInstance.destroy();
+      chartAbacoInstance = new Chart(ctxAbaco, {
+        type: 'line',
+        data: {
+          labels: cotasFixas,
+          datasets: abacoDatasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top', labels: { boxWidth: 12, font: { size: 10 } } },
+            tooltip: {
+              callbacks: {
+                title: (items) => `Cota Fixa Desejada: ${items[0].label} m`,
+                label: (ctx) => `${ctx.dataset.label}: Lançar ${ctx.parsed.y.toFixed(2)} m`
+              }
+            }
+          },
+          scales: {
+            x: {
+              title: { display: true, text: 'Cota Fixa Pré-estabelecida (m)', font: { size: 11, weight: 'bold' } }
+            },
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: 'Espessura de Aterro Necessária h_at (m)', font: { size: 11, weight: 'bold' } }
+            }
+          }
+        }
+      });
+
+      // --- GRÁFICO DIREITO: CONVERGÊNCIA ITERATIVA DA SUBMERSÃO (FIG. 3.7B) ---
+      const iterLabels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      const iterCurves = [
+        { harg: 5, color: '#10b981', label: 'h_arg = 5 m' },
+        { harg: 10, color: '#0284c7', label: 'h_arg = 10 m' },
+        { harg: 15, color: '#7c3aed', label: 'h_arg = 15 m' },
+        { harg: p.harg, color: '#e11d48', label: `Atual (h_arg = ${p.harg} m)` }
+      ].map(item => {
+        const simP = { ...p, harg: item.harg };
+        simP.sigtotal = simP.gama_arg * simP.harg / 2;
+        simP.sigvo = (simP.gama_arg - simP.gama_w) * simP.harg / 2;
+        simP.sigvm = simP.OCR * simP.sigvo;
+        const res = solvePrimarySettlement(simP, p.hat_input, false, true);
+        return {
+          label: item.label,
+          data: iterLabels.map((_, idx) => res.iterations[idx] ?? res.dh),
+          borderColor: item.color,
+          backgroundColor: item.color,
+          borderWidth: 2,
+          pointRadius: 3.5,
+          tension: 0.1
+        };
+      });
+
+      const ctxIter = document.getElementById('chartIterations').getContext('2d');
+      if (chartIterationsInstance) chartIterationsInstance.destroy();
+      chartIterationsInstance = new Chart(ctxIter, {
+        type: 'line',
+        data: {
+          labels: iterLabels,
+          datasets: iterCurves
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top', labels: { boxWidth: 12, font: { size: 10 } } },
+            tooltip: {
+              callbacks: {
+                title: (items) => `Iteração j = ${items[0].label} ${items[0].label === '1' ? '(Sem submersão)' : '(Com submersão)'}`,
+                label: (ctx) => `${ctx.dataset.label}: \u0394h = ${ctx.parsed.y.toFixed(3)} m`
+              }
+            }
+          },
+          scales: {
+            x: {
+              title: { display: true, text: 'Número da Iteração (j)', font: { size: 11, weight: 'bold' } }
+            },
+            y: {
+              title: { display: true, text: 'Recalque Primário Calculado \u0394h_j (m)', font: { size: 11, weight: 'bold' } }
+            }
+          }
+        }
+      });
+    }
+
+    // Inicializar aplicação ao carregar a janela
+    window.onload = function () {
+      toggleConditionalUI();
+      recalculateAll();
+    };
+  </script>
+</body>
+</html>
